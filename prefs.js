@@ -135,6 +135,28 @@ export default class WellbeingPreferences extends ExtensionPreferences {
             description: 'Customize the appearance'
         });
 
+        // Panel display mode dropdown
+        const displayModeRow = new Adw.ComboRow({
+            title: 'Panel Display',
+            subtitle: 'What to show in the top panel'
+        });
+
+        // Create string list model for display modes
+        const displayModes = new Gtk.StringList();
+        displayModes.append('Screen Time');
+        displayModes.append('Pomodoro Count');
+        displayModeRow.set_model(displayModes);
+
+        // Set initial selection based on current setting
+        const currentMode = settings.get_string('panel-display-mode');
+        displayModeRow.set_selected(currentMode === 'pomodoro' ? 1 : 0);
+
+        displayModeRow.connect('notify::selected', (row) => {
+            const selected = row.get_selected();
+            settings.set_string('panel-display-mode', selected === 1 ? 'pomodoro' : 'screen-time');
+        });
+        displayGroup.add(displayModeRow);
+
         // Show panel icon toggle
         const panelIconRow = new Adw.SwitchRow({
             title: 'Show Panel Icon',
