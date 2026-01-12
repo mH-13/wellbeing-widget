@@ -34,6 +34,15 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._extension = extension;
         this._settings = extension.getSettings();
 
+        // Listen for settings changes to update UI instantly
+        this._settingsChangedId = this._settings.connect('changed::zen-animated-bars', () => {
+            // If music is playing, restart the animation (or switch to static)
+            if (this._musicPlaying) {
+                this._stopMusicAnimation();
+                this._startMusicAnimation();
+            }
+        });
+
         // Pomodoro state
         this._pomoTimer = null;
         this._pomoDuration = this._settings.get_int('pomodoro-duration') * 60;
@@ -800,7 +809,11 @@ class WellbeingIndicator extends PanelMenu.Button {
 
             // Dynamic panel display with smooth width transitions
             // Skip label update if music animation is running (to prevent blinking)
-            if (!this._musicPlaying || this._pomoRunning || this._pomoRemaining < this._pomoDuration) {
+            // But DO update if music is playing in static mode (no animated bars)
+            const animatedBars = this._settings.get_boolean('zen-animated-bars');
+            const staticMusicPlaying = this._musicPlaying && !animatedBars;
+
+            if (!this._musicPlaying || staticMusicPlaying || this._pomoRunning || this._pomoRemaining < this._pomoDuration) {
                 if (this._pomoRunning) {
                     // Active timer: expand to show screen time + tomato + countdown
                     this._label.text = `${liveIndicator} ${screenTime}  🍅 ${pomoStatus.short}`.trim();
@@ -809,13 +822,17 @@ class WellbeingIndicator extends PanelMenu.Button {
                     // Paused: expand to show screen time + paused time
                     this._label.text = `${liveIndicator} ${screenTime}  ⏸ ${pomoStatus.short}`.trim();
                     this._label.set_style('min-width: 160px; transition: all 0.3s ease;');
+                } else if (staticMusicPlaying) {
+                    // Static Zen mode: show screen time + static music indicator
+                    this._label.text = `${screenTime}  🎵 Zen`;
+                    this._label.set_style('min-width: 160px; transition: all 0.3s ease;');
                 } else {
                     // Reset/not started: compact - just screen time
                     this._label.text = `${liveIndicator} ${screenTime}`.trim();
                     this._label.set_style('min-width: 110px; transition: all 0.3s ease;');
                 }
             }
-            // If music is playing, the animation timer handles the label updates
+            // If music is playing with animated bars, the animation timer handles the label updates
 
             // Update motivational quote (only change every 1 hour)
             const now = Date.now();
@@ -1306,7 +1323,18 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     _startMusicAnimation() {
-        // Real equalizer animation (like music player)
+        // Check if animated bars are enabled
+        const animatedBars = this._settings.get_boolean('zen-animated-bars');
+
+        if (!animatedBars) {
+            // Static mode: just set the label once and don't animate
+            const screenTime = this._getDailyScreenTime();
+            this._label.text = `${screenTime}  🎵 Zen`;
+            this._label.set_style('min-width: 160px; transition: all 0.3s ease;');
+            return; // No timer needed for static display
+        }
+
+        // Animated mode: Real equalizer animation (like music player)
         this._musicAnimationState = 0;
 
         // Remove existing timer before creating new one
@@ -1360,6 +1388,11 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     destroy() {
+        // Disconnect settings listener
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
         if (this._updateTimer) {
             GLib.source_remove(this._updateTimer);
             this._updateTimer = null;

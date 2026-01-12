@@ -54,6 +54,12 @@
       <description>Display the wellbeing widget in the top panel</description>
     </key>
 
+    <key name="zen-animated-bars" type="b">
+      <default>true</default>
+      <summary>Animated Zen Mode bars</summary>
+      <description>Show animated equalizer bars when Zen Music is playing. Disable for a static label.</description>
+    </key>
+
     <key name="statistics-data" type="s">
       <default>''</default>
       <summary>Statistics data storage</summary>

@@ -146,6 +146,17 @@ export default class WellbeingPreferences extends ExtensionPreferences {
         });
         displayGroup.add(panelIconRow);
 
+        // Animated Zen bars toggle
+        const zenAnimatedRow = new Adw.SwitchRow({
+            title: 'Animated Zen Bars',
+            subtitle: 'Show animated equalizer when playing Zen Music',
+            active: settings.get_boolean('zen-animated-bars')
+        });
+        zenAnimatedRow.connect('notify::active', (row) => {
+            settings.set_boolean('zen-animated-bars', row.get_active());
+        });
+        displayGroup.add(zenAnimatedRow);
+
         page.add(displayGroup);
 
         // Data Management Group
