@@ -34,6 +34,14 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._extension = extension;
         this._settings = extension.getSettings();
 
+        // Listen for settings changes to update UI instantly
+        this._settingsChangedId = this._settings.connect('changed::panel-display-mode', () => {
+            // Force immediate UI update when display mode changes
+            this._currentLabelText = null; // Clear cached text to force update
+            this._currentLabelStyle = null; // Clear cached style to force update
+            this._updateUI();
+        });
+
         // Pomodoro state
         this._pomoTimer = null;
         this._pomoDuration = this._settings.get_int('pomodoro-duration') * 60;
@@ -99,6 +107,23 @@ class WellbeingIndicator extends PanelMenu.Button {
         }
         this._stats.pomodoros[dateStr]++;
         this._saveStats();
+    }
+
+    _getTodayPomoCount() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        return this._stats.pomodoros[todayStr] || 0;
+    }
+
+    _getWeekPomoCount() {
+        const now = new Date();
+        let total = 0;
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            total += this._stats.pomodoros[dateStr] || 0;
+        }
+        return total;
     }
 
     _buildUI() {
@@ -801,18 +826,55 @@ class WellbeingIndicator extends PanelMenu.Button {
             // Dynamic panel display with smooth width transitions
             // Skip label update if music animation is running (to prevent blinking)
             if (!this._musicPlaying || this._pomoRunning || this._pomoRemaining < this._pomoDuration) {
-                if (this._pomoRunning) {
-                    // Active timer: expand to show screen time + tomato + countdown
-                    this._label.text = `${liveIndicator} ${screenTime}  🍅 ${pomoStatus.short}`.trim();
-                    this._label.set_style('min-width: 160px; transition: all 0.3s ease;');
-                } else if (this._pomoRemaining < this._pomoDuration) {
-                    // Paused: expand to show screen time + paused time
-                    this._label.text = `${liveIndicator} ${screenTime}  ⏸ ${pomoStatus.short}`.trim();
-                    this._label.set_style('min-width: 160px; transition: all 0.3s ease;');
+                let newLabelText;
+                let newLabelStyle;
+
+                const displayMode = this._settings.get_string('panel-display-mode');
+
+                if (displayMode === 'pomodoro') {
+                    // Pomodoro mode: show counts or timer
+                    if (this._pomoRunning) {
+                        // Active timer: "🍅 MM:SS"
+                        newLabelText = `🍅 ${pomoStatus.short}`;
+                        newLabelStyle = 'min-width: 90px; transition: all 0.3s ease;';
+                    } else if (this._pomoRemaining < this._pomoDuration) {
+                        // Paused: "⏸ MM:SS"
+                        newLabelText = `⏸ ${pomoStatus.short}`;
+                        newLabelStyle = 'min-width: 90px; transition: all 0.3s ease;';
+                    } else {
+                        // Idle: "🍅 X/Y" where X = today, Y = this week
+                        const todayPomos = this._getTodayPomoCount();
+                        const weekPomos = this._getWeekPomoCount();
+                        newLabelText = `🍅 ${todayPomos}/${weekPomos}`;
+                        newLabelStyle = 'min-width: 70px; transition: all 0.3s ease;';
+                    }
                 } else {
-                    // Reset/not started: compact - just screen time
-                    this._label.text = `${liveIndicator} ${screenTime}`.trim();
-                    this._label.set_style('min-width: 110px; transition: all 0.3s ease;');
+                    // Screen time mode (default)
+                    if (this._pomoRunning) {
+                        // Active timer: expand to show screen time + tomato + countdown
+                        newLabelText = `${liveIndicator} ${screenTime}  🍅 ${pomoStatus.short}`.trim();
+                        newLabelStyle = 'min-width: 160px; transition: all 0.3s ease;';
+                    } else if (this._pomoRemaining < this._pomoDuration) {
+                        // Paused: expand to show screen time + paused time
+                        newLabelText = `${liveIndicator} ${screenTime}  ⏸ ${pomoStatus.short}`.trim();
+                        newLabelStyle = 'min-width: 160px; transition: all 0.3s ease;';
+                    } else {
+                        // Reset/not started: compact - just screen time
+                        newLabelText = `${liveIndicator} ${screenTime}`.trim();
+                        newLabelStyle = 'min-width: 110px; transition: all 0.3s ease;';
+                    }
+                }
+
+                // Only update label text if it changed (prevents flickering)
+                if (newLabelText !== this._currentLabelText) {
+                    this._label.text = newLabelText;
+                    this._currentLabelText = newLabelText;
+                }
+
+                // Only update label style if it changed (prevents flickering)
+                if (newLabelStyle !== this._currentLabelStyle) {
+                    this._label.set_style(newLabelStyle);
+                    this._currentLabelStyle = newLabelStyle;
                 }
             }
             // If music is playing, the animation timer handles the label updates
@@ -1341,9 +1403,26 @@ class WellbeingIndicator extends PanelMenu.Button {
             const bar2 = bars[1][Math.floor(phase2)];
             const bar3 = bars[2][Math.floor(phase3)];
 
-            const screenTime = this._getDailyScreenTime();
-            this._label.text = `${screenTime}  ${bar1}${bar2}${bar3} Zen`;
-            this._label.set_style('min-width: 160px; transition: none;'); // No transition for smooth animation
+            // Respect display mode setting for music animation too
+            const displayMode = this._settings.get_string('panel-display-mode');
+            let prefix;
+            if (displayMode === 'pomodoro') {
+                const todayPomos = this._getTodayPomoCount();
+                const weekPomos = this._getWeekPomoCount();
+                prefix = `🍅 ${todayPomos}/${weekPomos}`;
+            } else {
+                prefix = this._getDailyScreenTime();
+            }
+
+            const newText = `${prefix}  ${bar1}${bar2}${bar3} Zen`;
+            // Music animation updates frequently, so always update text (animation frames)
+            // but only update style once
+            this._label.text = newText;
+            this._currentLabelText = newText;
+            if (this._currentLabelStyle !== 'min-width: 160px; transition: none;') {
+                this._label.set_style('min-width: 160px; transition: none;');
+                this._currentLabelStyle = 'min-width: 160px; transition: none;';
+            }
 
             this._musicAnimationState++;
             return GLib.SOURCE_CONTINUE;
@@ -1360,6 +1439,11 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     destroy() {
+        // Disconnect settings listener
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
         if (this._updateTimer) {
             GLib.source_remove(this._updateTimer);
             this._updateTimer = null;
