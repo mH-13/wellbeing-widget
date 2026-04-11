@@ -62,28 +62,76 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._statsSaveInterval = 60000; // Save stats every 60 seconds
         this._lastRecordedDate = new Date().toISOString().split('T')[0]; // Track day changes
         this._finalizedDays = new Set(); // Track which days are finalized (never recalculate)
+        this._pendingSave = false; // Debounce flag for save operations
+        this._saveTimeout = null; // Timeout for debounced saves
         this._loadStats();
 
         this._buildUI();
         this._startUpdating();
+
+        // Listen for settings changes
+        this._settingsChangedIds = [];
+        this._settingsChangedIds.push(
+            this._settings.connect('changed::show-panel-icon', () => {
+                this.visible = this._settings.get_boolean('show-panel-icon');
+            })
+        );
+        this._settingsChangedIds.push(
+            this._settings.connect('changed::pomodoro-duration', () => {
+                this._pomoDuration = this._settings.get_int('pomodoro-duration') * 60;
+                this._pomoRemaining = this._pomoDuration;
+                this._updateDurationButtons();
+                this._updateUI();
+            })
+        );
+
+        // Apply initial visibility from settings
+        this.visible = this._settings.get_boolean('show-panel-icon');
     }
 
     _loadStats() {
         // Load or initialize statistics data
         const statsJson = this._settings.get_string('statistics-data');
         try {
-            this._stats = statsJson ? JSON.parse(statsJson) : { daily: {}, pomodoros: {} };
+            this._stats = statsJson ? JSON.parse(statsJson) : { daily: {}, pomodoros: {}, finalized: [] };
+
+            // Validate structure
+            if (!this._stats.daily) this._stats.daily = {};
+            if (!this._stats.pomodoros) this._stats.pomodoros = {};
+            if (!this._stats.finalized) this._stats.finalized = [];
+
+            // Restore finalized days from persistent storage
+            this._finalizedDays = new Set(this._stats.finalized);
+
+            console.debug(`Wellbeing Widget: Loaded ${Object.keys(this._stats.daily).length} days of data, ${this._finalizedDays.size} finalized`);
         } catch (e) {
-            this._stats = { daily: {}, pomodoros: {} };
+            console.debug(`Wellbeing Widget: Error loading stats, initializing fresh: ${e.message}`);
+            this._stats = { daily: {}, pomodoros: {}, finalized: [] };
+            this._finalizedDays = new Set();
         }
     }
 
     _saveStats() {
-        try {
-            this._settings.set_string('statistics-data', JSON.stringify(this._stats));
-        } catch (e) {
-            log(`Wellbeing Widget: Error saving stats: ${e.message}`);
+        // Debounced save to prevent race conditions and excessive I/O
+        if (this._saveTimeout) {
+            GLib.Source.remove(this._saveTimeout);
+            this._saveTimeout = null;
         }
+
+        this._saveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            try {
+                // Sync finalized days to persistent storage
+                this._stats.finalized = Array.from(this._finalizedDays);
+
+                const statsJson = JSON.stringify(this._stats);
+                this._settings.set_string('statistics-data', statsJson);
+                console.debug(`Wellbeing Widget: Saved stats - ${Object.keys(this._stats.daily).length} days, ${this._finalizedDays.size} finalized`);
+            } catch (e) {
+                console.debug(`Wellbeing Widget: Error saving stats: ${e.message}`);
+            }
+            this._saveTimeout = null;
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _recordDailyStats(date, screenTimeSeconds) {
@@ -364,6 +412,8 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._musicAnimationTimer = null;
         this._musicAnimationState = 0;
         this._currentStreamName = null;
+        this._currentStreamIndex = 0;
+        this._musicRetryCount = 0;
 
         // Break reminder toggle with icon
         this._breakToggle = new PopupMenu.PopupSwitchMenuItem('Break Reminders', this._breakReminders);
@@ -852,17 +902,18 @@ class WellbeingIndicator extends PanelMenu.Button {
                 }
             }
 
-            // Break reminder (every 30 minutes)
+            // Break reminder (using user-configured interval)
             if (this._breakReminders) {
                 const currentTime = Math.floor(Date.now() / 1000);
-                if (currentTime - this._lastBreakNotification > 1800) {
+                const breakIntervalSeconds = this._settings.get_int('break-interval') * 60;
+                if (currentTime - this._lastBreakNotification > breakIntervalSeconds) {
                     Main.notify('Break Time', 'You\'ve been working for a while. Stand up, stretch, and rest your eyes.');
                     this._lastBreakNotification = currentTime;
                 }
             }
         } catch (e) {
             // Graceful error handling - don't let exceptions break the timer
-            log(`Wellbeing Widget: Error in _updateUI: ${e.message}`);
+            console.debug(`Wellbeing Widget: Error in _updateUI: ${e.message}`);
             this._screenTimeError = `UI update error`;
             if (this._label) {
                 this._label.text = '⚠️ UI Error';
@@ -953,12 +1004,17 @@ class WellbeingIndicator extends PanelMenu.Button {
         const historyPath = `${homeDir}/.local/share/gnome-shell/session-active-history.json`;
         const file = Gio.File.new_for_path(historyPath);
 
-        // Detect midnight crossing - yesterday becomes the old day but NOT finalized yet
+        // Detect midnight crossing - finalize yesterday when new day starts
         if (todayStr !== this._lastRecordedDate) {
-            log(`Wellbeing Widget: Day changed from ${this._lastRecordedDate} to ${todayStr}`);
+            console.debug(`Wellbeing Widget: Day changed from ${this._lastRecordedDate} to ${todayStr}`);
 
-            // DON'T finalize yesterday immediately - it will be finalized when it becomes 2 days old
-            // This allows yesterday to be recalculated if needed (e.g., session history updates)
+            // Finalize yesterday immediately (it's now complete and should never change)
+            const yesterday = this._lastRecordedDate;
+            if (yesterday && !this._finalizedDays.has(yesterday)) {
+                this._finalizedDays.add(yesterday);
+                console.debug(`Wellbeing Widget: Finalized ${yesterday} (midnight crossed)`);
+                this._saveStats(); // Persist finalized status immediately
+            }
 
             // Update to new day
             this._lastRecordedDate = todayStr;
@@ -973,50 +1029,44 @@ class WellbeingIndicator extends PanelMenu.Button {
                     const historyData = JSON.parse(new TextDecoder().decode(contents));
                     const currentTime = Math.floor(Date.now() / 1000);
 
-                    // Calculate TODAY's screen time (updates live)
-                    const todayScreenTime = this._calculateDayScreenTime(historyData, now, currentTime);
-                    this._stats.daily[todayStr] = todayScreenTime;
-                    this._cachedLiveSeconds = todayScreenTime;
+                    // Capture current date inside callback to prevent race conditions
+                    const callbackDate = new Date();
+                    const callbackDateStr = callbackDate.toISOString().split('T')[0];
 
-                    // Calculate historical days with proper finalization logic
+                    // Only update TODAY's screen time (prevent overwriting wrong day due to async delay)
+                    if (callbackDateStr === todayStr) {
+                        const todayScreenTime = this._calculateDayScreenTime(historyData, callbackDate, currentTime);
+                        this._stats.daily[callbackDateStr] = todayScreenTime;
+                        this._cachedLiveSeconds = todayScreenTime;
+                    }
+
+                    // Calculate historical days ONLY if they're not finalized
                     for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
-                        const pastDate = new Date(now);
+                        const pastDate = new Date(callbackDate);
                         pastDate.setDate(pastDate.getDate() - daysAgo);
                         const pastDateStr = pastDate.toISOString().split('T')[0];
 
-                        // NEVER recalculate finalized days (days that are 2+ days old)
+                        // Skip finalized days - they should NEVER change
                         if (this._finalizedDays.has(pastDateStr)) {
-                            continue; // Skip finalized days
+                            continue;
                         }
 
-                        // For yesterday (daysAgo === 1), ALWAYS recalculate until it's finalized
-                        // For older days, only calculate if we don't have data yet
-                        if (daysAgo === 1 || !this._stats.daily[pastDateStr]) {
+                        // Only calculate if we don't have data yet (first time seeing this date)
+                        if (!this._stats.daily[pastDateStr]) {
                             const pastScreenTime = this._calculateDayScreenTime(historyData, pastDate, null);
-                            const previousValue = this._stats.daily[pastDateStr];
                             this._stats.daily[pastDateStr] = pastScreenTime;
-
-                            // Log only if value changed significantly (to reduce log spam)
-                            if (previousValue === undefined || Math.abs(previousValue - pastScreenTime) > 60) {
-                                log(`Wellbeing Widget: Updated ${daysAgo === 1 ? 'yesterday' : 'historical'} data for ${pastDateStr}: ${pastScreenTime} seconds`);
-                            }
-
-                            // Finalize yesterday once the day after tomorrow starts (it becomes 2 days old)
-                            if (daysAgo === 2 && !this._finalizedDays.has(pastDateStr)) {
-                                this._finalizedDays.add(pastDateStr);
-                                log(`Wellbeing Widget: Finalized ${pastDateStr} with ${pastScreenTime} seconds (now 2 days old)`);
-                            }
+                            console.debug(`Wellbeing Widget: Calculated historical data for ${pastDateStr}: ${pastScreenTime} seconds`);
                         }
                     }
 
-                    // Save stats (only when changed)
+                    // Save stats (debounced to prevent excessive writes)
                     this._saveStats();
                     this._isLoadingScreenTime = false;
                     this._screenTimeError = null;
                 } else {
                     // File doesn't exist or can't be read - normal on first install
                     if (this._isLoadingScreenTime) {
-                        log(`Wellbeing Widget: Session history file not found - waiting for GNOME to create it`);
+                        console.debug(`Wellbeing Widget: Session history file not found - waiting for GNOME to create it`);
                         // Don't show error on first install, just show 0h 0m
                         this._screenTimeError = null;
                     }
@@ -1024,14 +1074,10 @@ class WellbeingIndicator extends PanelMenu.Button {
                     this._cachedLiveSeconds = 0;
                 }
             } catch (e) {
-                // Gracefully handle errors
-                if (e.message && e.message.includes('JSON')) {
-                    log(`Wellbeing Widget: Session history file is empty or corrupted - waiting for valid data`);
-                    this._screenTimeError = null; // Don't show error for empty/corrupted file
-                } else {
-                    log(`Wellbeing Widget: Error calculating live screen time: ${e.message}`);
-                    this._screenTimeError = 'Data Error';
-                }
+                // Gracefully handle errors - don't show errors for normal fresh install scenarios
+                console.debug(`Wellbeing Widget: Error calculating live screen time: ${e.message}`);
+                // Don't show error to user - this is expected on fresh install
+                this._screenTimeError = null;
                 this._isLoadingScreenTime = false;
                 this._cachedLiveSeconds = 0;
             }
@@ -1182,7 +1228,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 const soundPlayer = global.display.get_sound_player();
                 soundPlayer.play_from_theme('complete', 'Focus Session Complete', null);
             } catch (e) {
-                log(`Wellbeing Widget: Error playing sound: ${e.message}`);
+                console.debug(`Wellbeing Widget: Error playing sound: ${e.message}`);
             }
         }
 
@@ -1205,7 +1251,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
     _pausePomo() {
         if (this._pomoTimer) {
-            GLib.source_remove(this._pomoTimer);
+            GLib.Source.remove(this._pomoTimer);
             this._pomoTimer = null;
         }
         this._pomoRunning = false;
@@ -1233,23 +1279,61 @@ class WellbeingIndicator extends PanelMenu.Button {
     _playZenMusic() {
         if (this._musicPlaying) return;
 
+        // Free lofi/zen radio streams (no downloads needed)
+        const streams = [
+            {name: 'Calm Radio - Meditation', url: 'https://streams.calmradio.com/api/39/128/stream'},
+            {name: 'SomaFM - Drone Zone', url: 'https://ice1.somafm.com/dronezone-128-mp3'},
+            {name: 'Lofi Girl Radio', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'}
+        ];
+
+        this._tryPlayStream(streams, this._currentStreamIndex);
+    }
+
+    _tryPlayStream(streams, streamIndex) {
+        if (streamIndex >= streams.length) {
+            // All streams failed
+            console.debug(`Wellbeing Widget: All music streams failed`);
+            if (this._musicStatusLabel) {
+                this._musicStatusLabel.text = '⚠️ Unable to play music';
+            }
+            this._musicPlaying = false;
+
+            // Check if mpv is installed
+            try {
+                const proc = Gio.Subprocess.new(
+                    ['which', 'mpv'],
+                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                );
+                proc.communicate_utf8_async(null, null, (_proc, res) => {
+                    try {
+                        const [, stdout] = proc.communicate_utf8_finish(res);
+                        if (!stdout || stdout.trim() === '') {
+                            // mpv not found
+                            Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
+                        }
+                    } catch (e) {
+                        // mpv not found
+                        Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
+                    }
+                });
+            } catch (e) {
+                // Can't check, just show generic message
+                Main.notify('🎵 Zen Music', 'Unable to play music streams');
+            }
+            return;
+        }
+
+        const selectedStream = streams[streamIndex];
+        this._currentStreamName = selectedStream.name;
+        this._currentStreamIndex = streamIndex;
+
         try {
-            // Free lofi/zen radio streams (no downloads needed)
-            const streams = [
-                {name: 'Calm Radio - Meditation', url: 'https://streams.calmradio.com/api/39/128/stream'},
-                {name: 'Zen Radio - Relaxing', url: 'http://stream.zenradio.com/radios/relaxing.mp3'},
-                {name: 'Chillhop Live', url: 'https://chillhop.com/live'}
-            ];
-
-            const selectedStream = streams[0]; // Use first stream for now
-            this._currentStreamName = selectedStream.name;
-
             // Create cancellable for proper process management
             this._musicCancellable = new Gio.Cancellable();
 
             // Use mpv with higher volume (80%) via Gio.Subprocess
             this._musicProcess = Gio.Subprocess.new(
-                ['mpv', '--no-video', '--volume=80', selectedStream.url],
+                ['mpv', '--no-video', '--volume=80', '--no-terminal', selectedStream.url],
                 Gio.SubprocessFlags.NONE
             );
 
@@ -1262,15 +1346,40 @@ class WellbeingIndicator extends PanelMenu.Button {
             }
 
             if (this._settings.get_boolean('visual-alerts')) {
-                Main.notify('🎵 Zen Music', 'Relax and focus with calming sounds');
+                Main.notify('🎵 Zen Music', `Playing: ${this._currentStreamName}`);
             }
+
+            // Monitor process exit to detect failures
+            this._musicProcess.wait_async(null, (_proc, res) => {
+                try {
+                    this._musicProcess.wait_finish(res);
+                    const exitCode = this._musicProcess.get_exit_status();
+
+                    // If we're still "playing" but process exited with error, try next stream
+                    if (this._musicPlaying && exitCode !== 0 && this._musicRetryCount < 3) {
+                        console.debug(`Wellbeing Widget: Stream ${selectedStream.name} failed (exit ${exitCode}), trying next...`);
+                        this._musicRetryCount++;
+                        this._musicPlaying = false;
+                        this._stopMusicAnimation();
+                        this._tryPlayStream(streams, streamIndex + 1);
+                    }
+                } catch (e) {
+                    console.debug(`Wellbeing Widget: Music process error: ${e.message}`);
+                }
+            });
+
         } catch (e) {
-            log(`Wellbeing Widget: Could not play music: ${e.message}`);
-            if (this._musicStatusLabel) {
-                this._musicStatusLabel.text = '⚠️ mpv not installed';
+            console.debug(`Wellbeing Widget: Could not play stream ${selectedStream.name}: ${e.message}`);
+            // Try next stream
+            if (this._musicRetryCount < 3) {
+                this._musicRetryCount++;
+                this._tryPlayStream(streams, streamIndex + 1);
+            } else {
+                if (this._musicStatusLabel) {
+                    this._musicStatusLabel.text = '⚠️ mpv not installed';
+                }
+                Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
             }
-            // Show user-friendly notification with generic install instruction
-            Main.notify('🎵 Zen Music', 'Install mpv: Run "sudo <package-manager> install mpv" in terminal');
         }
     }
 
@@ -1291,17 +1400,23 @@ class WellbeingIndicator extends PanelMenu.Button {
 
             this._musicPlaying = false;
             this._currentStreamName = null;
+            this._currentStreamIndex = 0;
+            this._musicRetryCount = 0;
             this._stopMusicAnimation();
 
             // Update status label
             if (this._musicStatusLabel) {
-                this._musicStatusLabel.text = 'Music stopped';
+                this._musicStatusLabel.text = 'Select a stream to play';
             }
         } catch (e) {
-            log(`Wellbeing Widget: Error stopping music: ${e.message}`);
+            console.debug(`Wellbeing Widget: Error stopping music: ${e.message}`);
             if (this._musicStatusLabel) {
-                this._musicStatusLabel.text = '⚠️ Error stopping music';
+                this._musicStatusLabel.text = 'Select a stream to play';
             }
+            // Force reset state even if error occurred
+            this._musicPlaying = false;
+            this._musicProcess = null;
+            this._musicCancellable = null;
         }
     }
 
@@ -1352,7 +1467,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
     _stopMusicAnimation() {
         if (this._musicAnimationTimer) {
-            GLib.source_remove(this._musicAnimationTimer);
+            GLib.Source.remove(this._musicAnimationTimer);
             this._musicAnimationTimer = null;
         }
         // Reset panel display
@@ -1360,21 +1475,37 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     destroy() {
+        // Clean up all timers and resources
         if (this._updateTimer) {
-            GLib.source_remove(this._updateTimer);
+            GLib.Source.remove(this._updateTimer);
             this._updateTimer = null;
         }
         if (this._pomoTimer) {
-            GLib.source_remove(this._pomoTimer);
+            GLib.Source.remove(this._pomoTimer);
             this._pomoTimer = null;
         }
         if (this._musicAnimationTimer) {
-            GLib.source_remove(this._musicAnimationTimer);
+            GLib.Source.remove(this._musicAnimationTimer);
             this._musicAnimationTimer = null;
+        }
+        if (this._saveTimeout) {
+            GLib.Source.remove(this._saveTimeout);
+            this._saveTimeout = null;
         }
         if (this._musicPlaying) {
             this._stopZenMusic();
         }
+
+        // Disconnect settings listeners
+        if (this._settingsChangedIds) {
+            this._settingsChangedIds.forEach(id => {
+                if (this._settings) {
+                    this._settings.disconnect(id);
+                }
+            });
+            this._settingsChangedIds = [];
+        }
+
         super.destroy();
     }
 });
