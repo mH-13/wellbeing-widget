@@ -209,7 +209,7 @@ export default class WellbeingPreferences extends ExtensionPreferences {
         });
 
         const versionLabel = new Gtk.Label({
-            label: 'v1.0',
+            label: `v${this.metadata.version}`,
             css_classes: ['dim-label'],
             valign: Gtk.Align.CENTER
         });
