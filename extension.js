@@ -40,7 +40,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._pomoRemaining = this._pomoDuration;
         this._pomoRunning = false;
         this._pomoCount = 0; // Track completed Pomodoros for long breaks
-        this._breakReminders = true;
+        this._breakReminders = this._settings.get_boolean('break-reminders');
         this._lastBreakNotification = 0;
 
         // Quote rotation state (change every 1 hour)
@@ -471,6 +471,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._stopMusicBtn.connect('clicked', () => this._stopZenMusic());
         this._breakToggle.connect('toggled', (_item, state) => {
             this._breakReminders = state;
+            this._settings.set_boolean('break-reminders', state);
         });
 
         // Update stats when menu opens - deferred for instant opening
