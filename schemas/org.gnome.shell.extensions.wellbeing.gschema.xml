@@ -2,10 +2,16 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.wellbeing" path="/org/gnome/shell/extensions/wellbeing/">
 
+    <key name="panel-position" type="s">
+      <default>'right'</default>
+      <summary>Panel position</summary>
+      <description>Where to show the indicator: left, center, or right</description>
+    </key>
+
     <key name="break-reminders" type="b">
       <default>true</default>
       <summary>Enable break reminders</summary>
-      <description>Show notifications reminding you to take breaks every 30 minutes</description>
+      <description>Show notifications reminding you to take breaks</description>
     </key>
 
     <key name="pomodoro-duration" type="i">

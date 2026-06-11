@@ -1,222 +1,295 @@
 /* ============================================================
-   Wellbeing Widget — Apple Screen Time Edition v2
-   Clean, minimal, iOS 17 / macOS Sonoma aesthetic
+   Wellbeing Widget — Apple Screen Time Edition v3
+   SF Pro inspired  •  iOS 17 / macOS Sonoma colours
    ============================================================ */
 
-/* ── PANEL BUTTON ─────────────────────────────────────────── */
+/* ── PANEL BUTTON ─────────────────────────────────────────────────── */
 .wellbeing-panel-box {
-  spacing: 6px;
-  padding: 2px 10px;
-  background: rgba(10, 132, 255, 0.15);
-  border-radius: 20px;
-  border: 1px solid rgba(10, 132, 255, 0.30);
-  transition: all 0.2s ease;
+  spacing: 5px;
+  padding: 2px 11px;
+  background: rgba(10,132,255,0.14);
+  border-radius: 22px;
+  border: 1px solid rgba(10,132,255,0.28);
+  transition: all 0.18s ease;
 }
 .wellbeing-panel-box:hover {
-  background: rgba(10, 132, 255, 0.25);
-  border-color: rgba(10, 132, 255, 0.50);
+  background: rgba(10,132,255,0.22);
+  border-color: rgba(10,132,255,0.48);
 }
-.wellbeing-panel-box-medium     { background: rgba(255,159,10,0.15); border-color: rgba(255,159,10,0.30); }
-.wellbeing-panel-box-medium-high{ background: rgba(255,107,0,0.17);  border-color: rgba(255,107,0,0.33);  }
-.wellbeing-panel-box-high       { background: rgba(255,69,58,0.18);  border-color: rgba(255,69,58,0.36); animation: alertPulse 2.4s ease-in-out infinite; }
+.wellbeing-panel-box-medium      { background:rgba(255,159,10,0.14); border-color:rgba(255,159,10,0.28); }
+.wellbeing-panel-box-medium-high { background:rgba(255,107,0,0.16);  border-color:rgba(255,107,0,0.32);  }
+.wellbeing-panel-box-high        { background:rgba(255,69,58,0.17);  border-color:rgba(255,69,58,0.34); animation:alertPulse 2.2s ease-in-out infinite; }
 
 @keyframes alertPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,69,58,0); }
-  50%     { box-shadow: 0 0 0 4px rgba(255,69,58,0.22); }
+  0%,100% { box-shadow:none; }
+  50%     { box-shadow:0 0 0 3px rgba(255,69,58,0.20); }
 }
 
-.wellbeing-panel-icon  { color: #fff; icon-size: 13px; }
-.wellbeing-panel-label { color: #fff; font-weight: 600; font-size: 12px; letter-spacing: 0.2px; min-width: 70px; }
+.wellbeing-panel-label {
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'SF Pro Display', 'Inter', 'Cantarell', sans-serif;
+  letter-spacing: 0.15px;
+  min-width: 60px;
+}
 
-/* ── MAIN MENU ────────────────────────────────────────────── */
+/* ── MAIN MENU ────────────────────────────────────────────────────── */
 .wellbeing-menu {
-  min-width: 340px;
+  min-width: 320px;
   padding: 0;
-  background-color: rgba(22, 22, 24, 0.96);
-  background-image: linear-gradient(180deg, rgba(36,36,38,0.97) 0%, rgba(22,22,24,0.99) 100%);
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.09);
-  box-shadow: 0 20px 56px rgba(0,0,0,0.88), 0 1px 0 rgba(255,255,255,0.05) inset;
+  background-color: rgba(20,20,22,0.97);
+  background-image: linear-gradient(180deg,
+    rgba(32,32,34,0.98) 0%,
+    rgba(20,20,22,0.99) 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 22px 54px rgba(0,0,0,0.90),
+    0 1px 0 rgba(255,255,255,0.04) inset;
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
 }
 
-/* ── HEADER CARD ──────────────────────────────────────────── */
-.wellbeing-header-quote-section {
-  padding: 22px 20px 16px 20px;
-  background: linear-gradient(160deg, rgba(10,132,255,0.12) 0%, rgba(10,132,255,0.03) 100%);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  border-radius: 20px 20px 0 0;
+/* ── HEADER CARD ──────────────────────────────────────────────────── */
+.wellbeing-header-section {
+  padding: 20px 18px 14px 18px;
+  background: linear-gradient(155deg,
+    rgba(10,132,255,0.10) 0%,
+    rgba(10,132,255,0.02) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-radius: 18px 18px 0 0;
 }
-.wellbeing-header-quote-box  { spacing: 4px; }
-.wellbeing-header-title-box  { spacing: 8px; }
-.wellbeing-header-icon       { color: #0A84FF; }
+.wellbeing-header-box { spacing: 2px; }
+.wellbeing-title-row  { spacing: 6px; margin-bottom: 6px; }
+
+.wellbeing-title-icon { color: #0A84FF; }
 
 .wellbeing-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(235,235,245,0.55);
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
-
-/* ── HERO TIME (big Apple-style number) ───────────────────── */
-.wellbeing-hero-time {
-  font-size: 42px;
-  font-weight: 200;
-  color: #FFFFFF;
-  letter-spacing: -2px;
-  margin-top: 4px;
-  margin-bottom: 0;
-}
-.wellbeing-hero-sub {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(235,235,245,0.40);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.wellbeing-quote-label-compact {
-  font-size: 12px;
-  font-style: italic;
-  color: rgba(235,235,245,0.42);
-  line-height: 1.45;
-  max-width: 300px;
-}
-
-/* ── SECTION HEADER ───────────────────────────────────────── */
-.wellbeing-section-header {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(235,235,245,0.40);
+  color: rgba(235,235,245,0.45);
   text-transform: uppercase;
-  letter-spacing: 0.9px;
-  padding: 16px 20px 4px 20px;
+  letter-spacing: 1px;
 }
 
-/* ── WEEKLY CHART CARD ────────────────────────────────────── */
-.wellbeing-stats-graph-item {
-  padding: 10px 8px 8px 8px;
-  margin: 2px 14px 6px 14px;
-  border-radius: 14px;
-  background: rgba(36,36,38,0.75);
-  border: 1px solid rgba(255,255,255,0.07);
+/* Big hero number — SF Pro Display thin */
+.wellbeing-hero-time {
+  font-family: 'SF Pro Display', 'Inter', 'Cantarell', sans-serif;
+  font-size: 46px;
+  font-weight: 200;
+  color: #FFFFFF;
+  letter-spacing: -2.5px;
+  margin-top: 2px;
+  margin-bottom: 0;
 }
-.wellbeing-stats-graph-box  { spacing: 6px; padding: 2px; }
-.wellbeing-stats-chart-box  { spacing: 3px; padding: 4px; min-height: 100px; }
 
-.wellbeing-stats-bar-container {
+.wellbeing-hero-sub {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(235,235,245,0.35);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.wellbeing-quote {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(235,235,245,0.36);
+  line-height: 1.5;
+  max-width: 290px;
+  margin-top: 4px;
+}
+
+/* ── SECTION HEADERS ──────────────────────────────────────────────── */
+.wellbeing-section-header {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(235,235,245,0.35);
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  padding: 14px 18px 4px 18px;
+}
+
+/* ── CARDS (chart + apps) ─────────────────────────────────────────── */
+.wellbeing-card {
+  padding: 10px 10px 8px 10px;
+  margin: 2px 12px 4px 12px;
+  border-radius: 12px;
+  background: rgba(30,30,32,0.80);
+  border: 1px solid rgba(255,255,255,0.065);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* ── CHART ────────────────────────────────────────────────────────── */
+.wellbeing-chart-box { spacing: 4px; }
+.wellbeing-chart-row {
   spacing: 2px;
-  min-width: 26px; max-width: 26px;
+  padding: 2px 4px;
+  min-height: 96px;
+}
+
+.wellbeing-bar-col {
+  spacing: 1px;
+  min-width: 28px; max-width: 28px;
   padding: 2px;
   border-radius: 6px;
-  min-height: 110px; max-height: 110px;
-  transition: background 0.15s ease;
+  min-height: 100px; max-height: 100px;
 }
-.wellbeing-stats-bar-container:hover { background: rgba(255,255,255,0.06); }
-.wellbeing-stats-bar-hover            { background: rgba(255,255,255,0.09); }
-.wellbeing-stats-bar-area             { min-height: 85px; spacing: 2px; }
+.wellbeing-bar-col:hover, .wellbeing-bar-col-hover { background: rgba(255,255,255,0.06); }
+.wellbeing-bar-area { min-height: 80px; spacing: 1px; }
 
 /* iOS colour-coded bars */
-.wellbeing-stats-bar-screen           { background: linear-gradient(180deg,#30D158,#25A244); border-radius: 5px 5px 2px 2px; min-width:18px; min-height:2px; box-shadow:0 0 6px rgba(48,209,88,0.30); transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-.wellbeing-stats-bar-screen-medium    { background: linear-gradient(180deg,#FF9F0A,#CC7C00); border-radius: 5px 5px 2px 2px; min-width:18px; min-height:2px; box-shadow:0 0 6px rgba(255,159,10,0.30); transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-.wellbeing-stats-bar-screen-medium-high{ background: linear-gradient(180deg,#FF6B00,#CC5200); border-radius: 5px 5px 2px 2px; min-width:18px; min-height:2px; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-.wellbeing-stats-bar-screen-high      { background: linear-gradient(180deg,#FF453A,#CC2820); border-radius: 5px 5px 2px 2px; min-width:18px; min-height:2px; box-shadow:0 0 6px rgba(255,69,58,0.30);  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+.wellbeing-bar-green  { background:linear-gradient(180deg,#34C759,#248A3D); border-radius:4px 4px 2px 2px; min-width:18px; min-height:3px; transition: height 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+.wellbeing-bar-yellow { background:linear-gradient(180deg,#FFD60A,#C09300); border-radius:4px 4px 2px 2px; min-width:18px; min-height:3px; transition: height 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+.wellbeing-bar-orange { background:linear-gradient(180deg,#FF9F0A,#C06000); border-radius:4px 4px 2px 2px; min-width:18px; min-height:3px; transition: height 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+.wellbeing-bar-red    { background:linear-gradient(180deg,#FF453A,#B22820); border-radius:4px 4px 2px 2px; min-width:18px; min-height:3px; transition: height 0.4s cubic-bezier(0.34,1.56,0.64,1); }
 
-.wellbeing-stats-day-label {
-  font-size: 10px; font-weight: 500;
-  color: rgba(235,235,245,0.38);
-  text-align: center; padding-top: 4px; letter-spacing: 0.2px;
-}
-
-/* ── TOOLTIP ──────────────────────────────────────────────── */
-.wellbeing-stats-tooltip {
-  background: rgba(36,36,38,0.98);
-  padding: 9px 13px;
-  border-radius: 11px;
-  border: 1px solid rgba(255,255,255,0.11);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.65);
-  margin-bottom: 6px; spacing: 2px; min-width: 82px;
-}
-.wellbeing-stats-tooltip-date { font-size:10px; font-weight:600; color:rgba(235,235,245,0.45); text-align:center; letter-spacing:0.3px; }
-.wellbeing-stats-tooltip-time { font-size:17px; font-weight:700; color:#fff; text-align:center; letter-spacing:-0.5px; }
-
-/* ── STATS SUMMARY ────────────────────────────────────────── */
-.wellbeing-stats-summary-item {
-  padding: 8px 20px 10px 20px;
-  margin: 0 14px 4px 14px;
-  border-radius: 12px;
-  background: rgba(36,36,38,0.60);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.wellbeing-stats-summary-label {
-  font-size: 12px; font-weight: 500;
-  color: rgba(235,235,245,0.65);
+.wellbeing-day-label {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(235,235,245,0.32);
+  text-align: center;
+  padding-top: 3px;
+  letter-spacing: 0.3px;
 }
 
-/* ── MOST USED APPS CARD ──────────────────────────────────── */
-.wellbeing-apps-card {
-  padding: 12px 14px;
-  margin: 2px 14px 10px 14px;
-  border-radius: 14px;
-  background: rgba(36,36,38,0.75);
-  border: 1px solid rgba(255,255,255,0.07);
+/* ── TOOLTIP ──────────────────────────────────────────────────────── */
+.wellbeing-tooltip {
+  background: rgba(36,36,38,0.97);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.60);
+  margin-bottom: 4px;
+  spacing: 1px;
+  min-width: 76px;
 }
-.wellbeing-apps-box  { spacing: 8px; }
-.wellbeing-apps-empty {
-  font-size: 12px; color: rgba(235,235,245,0.35);
-  font-style: italic; text-align: center; padding: 10px 0;
+.wellbeing-tip-date {
+  font-size: 9px; font-weight: 600;
+  color: rgba(235,235,245,0.40);
+  text-align: center; letter-spacing: 0.4px; text-transform: uppercase;
+}
+.wellbeing-tip-time {
+  font-size: 16px; font-weight: 700;
+  color: #FFFFFF; text-align: center;
+  letter-spacing: -0.5px;
 }
 
-.wellbeing-app-row {
-  spacing: 10px;
+/* ── SUMMARY ──────────────────────────────────────────────────────── */
+.wellbeing-summary-item {
+  padding: 6px 18px 8px 18px;
+  margin: 0 12px 2px 12px;
 }
-.wellbeing-app-name {
-  font-size: 13px; font-weight: 500;
-  color: rgba(235,235,245,0.88);
-  max-width: 190px;
+.wellbeing-summary-label {
+  font-size: 11px; font-weight: 400;
+  color: rgba(235,235,245,0.45);
+  letter-spacing: 0.1px;
 }
-.wellbeing-app-duration {
+.wellbeing-summary-label-today {
   font-size: 12px; font-weight: 600;
   color: #0A84FF;
-  min-width: 46px; text-align: right;
 }
 
-/* App progress bar */
-.wellbeing-app-bar-track {
-  height: 4px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px;
-  x-expand: true;
-  overflow: hidden;
-}
-.wellbeing-app-bar-fill {
-  height: 4px;
-  background: linear-gradient(90deg, #0A84FF, #30D158);
-  border-radius: 2px;
-  transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1);
+/* ── APPS ─────────────────────────────────────────────────────────── */
+.wellbeing-apps-box  { spacing: 7px; }
+.wellbeing-empty-label {
+  font-size: 11px;
+  color: rgba(235,235,245,0.28);
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
 }
 
-/* ── SETTINGS ─────────────────────────────────────────────── */
+.wellbeing-app-row  { spacing: 8px; }
+
+.wellbeing-app-rank {
+  font-size: 10px; font-weight: 700;
+  color: rgba(235,235,245,0.25);
+  min-width: 12px;
+  text-align: center;
+}
+
+.wellbeing-app-name {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 12px; font-weight: 500;
+  color: rgba(235,235,245,0.85);
+  max-width: 170px;
+}
+
+.wellbeing-app-dur {
+  font-family: 'SF Pro Text', 'Inter', 'Cantarell', sans-serif;
+  font-size: 11px; font-weight: 600;
+  color: #30D158;
+  min-width: 44px;
+  text-align: right;
+}
+
+.wellbeing-bar-track {
+  height: 3px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+}
+.wellbeing-bar-fill {
+  height: 3px;
+  background: linear-gradient(90deg, #0A84FF 0%, #30D158 100%);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── PANEL POSITION ───────────────────────────────────────────────── */
+.wellbeing-pos-item {
+  padding: 4px 12px 8px 12px;
+  margin: 0 12px;
+}
+.wellbeing-pos-box { spacing: 6px; }
+.wellbeing-pos-btn {
+  padding: 5px 0;
+  border-radius: 16px;
+  background: rgba(40,40,42,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: rgba(235,235,245,0.60);
+  font-size: 11px; font-weight: 500;
+  transition: all 0.15s ease;
+}
+.wellbeing-pos-btn:hover  { background: rgba(52,52,54,0.90); color: rgba(235,235,245,0.85); }
+.wellbeing-pos-active {
+  background: #0A84FF;
+  border-color: rgba(10,132,255,0.70);
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(10,132,255,0.38);
+}
+
+/* ── SETTINGS ─────────────────────────────────────────────────────── */
 .wellbeing-settings-item {
-  padding: 10px 18px;
-  margin: 4px 8px 10px 8px;
-  border-radius: 12px;
-  transition: background 0.15s ease;
+  padding: 9px 16px;
+  margin: 4px 8px 8px 8px;
+  border-radius: 10px;
+  transition: background 0.13s ease;
 }
-.wellbeing-settings-item:hover { background: rgba(255,255,255,0.05); }
-.wellbeing-settings-box        { spacing: 10px; }
-.wellbeing-settings-icon       { color: rgba(235,235,245,0.35); }
-.wellbeing-settings-label      { font-size: 13px; font-weight: 500; color: rgba(235,235,245,0.55); }
+.wellbeing-settings-item:hover { background: rgba(255,255,255,0.04); }
+.wellbeing-settings-box    { spacing: 9px; }
+.wellbeing-settings-icon   { color: rgba(235,235,245,0.28); }
+.wellbeing-settings-label  {
+  font-size: 12px; font-weight: 500;
+  color: rgba(235,235,245,0.40);
+  letter-spacing: 0.1px;
+}
 
-/* ── LIGHT THEME ──────────────────────────────────────────── */
+/* ── LIGHT MODE ───────────────────────────────────────────────────── */
 @media (prefers-color-scheme: light) {
-  .wellbeing-menu { background-color: rgba(242,242,247,0.97); border-color: rgba(0,0,0,0.07); box-shadow: 0 8px 28px rgba(0,0,0,0.16); }
-  .wellbeing-hero-time           { color: rgba(0,0,0,0.88); }
-  .wellbeing-title               { color: rgba(0,0,0,0.40); }
-  .wellbeing-quote-label-compact { color: rgba(0,0,0,0.35); }
-  .wellbeing-stats-summary-label { color: rgba(0,0,0,0.55); }
-  .wellbeing-app-name            { color: rgba(0,0,0,0.80); }
-  .wellbeing-section-header      { color: rgba(0,0,0,0.38); }
-  .wellbeing-settings-label      { color: rgba(0,0,0,0.50); }
+  .wellbeing-menu         { background-color:rgba(245,245,247,0.97); border-color:rgba(0,0,0,0.07); }
+  .wellbeing-hero-time    { color:rgba(0,0,0,0.88); }
+  .wellbeing-title        { color:rgba(0,0,0,0.38); }
+  .wellbeing-quote        { color:rgba(0,0,0,0.30); }
+  .wellbeing-app-name     { color:rgba(0,0,0,0.78); }
+  .wellbeing-summary-label{ color:rgba(0,0,0,0.45); }
+  .wellbeing-section-header{color:rgba(0,0,0,0.35); }
+  .wellbeing-card         { background:rgba(255,255,255,0.88); border-color:rgba(0,0,0,0.06); }
 }
