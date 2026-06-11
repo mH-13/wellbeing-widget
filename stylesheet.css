@@ -1,474 +1,345 @@
-/* Wellbeing Widget - Modern Vibrant Design */
+/* ============================================================
+   Wellbeing Widget — Apple Screen Time Edition
+   Design language: iOS 17 / macOS Sonoma
+   Author: GauravPatil2515
+   ============================================================ */
 
-/* Panel Box Container - Optimized for performance */
+/* ── DESIGN TOKENS ────────────────────────────────────────── */
+/* accent:    #0A84FF  (iOS blue)                              */
+/* surface:   rgba(28,28,30,0.85)  (iOS dark card)            */
+/* border:    rgba(255,255,255,0.10)                           */
+/* text-pri:  #FFFFFF                                          */
+/* text-sec:  rgba(235,235,245,0.60)  (iOS secondary label)   */
+/* green:     #30D158   orange: #FF9F0A   red: #FF453A        */
+/* ─────────────────────────────────────────────────────────── */
+
+/* ── PANEL BAR BUTTON ────────────────────────────────────── */
 .wellbeing-panel-box {
-  spacing: 8px;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, rgba(80, 110, 75, 1) 0%, rgba(60, 90, 60, 1) 100%);
-  border-radius: 18px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  /* GPU acceleration */
-  will-change: transform;
-  transform: translateZ(0);
+  spacing: 6px;
+  padding: 3px 10px;
+  background: rgba(10, 132, 255, 0.18);
+  border-radius: 20px;
+  border: 1px solid rgba(10, 132, 255, 0.35);
+  transition: all 0.2s ease;
 }
 
 .wellbeing-panel-box:hover {
-  background: linear-gradient(135deg, rgba(90, 125, 85, 1) 0%, rgba(70, 105, 70, 1) 100%);
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px) scale(1.02);
+  background: rgba(10, 132, 255, 0.28);
+  border-color: rgba(10, 132, 255, 0.55);
 }
 
-/* Panel color variations based on screen time */
+/* Screen-time colour states */
 .wellbeing-panel-box-medium {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.9) 0%, rgba(255, 179, 0, 0.9) 100%);
+  background: rgba(255, 159, 10, 0.18);
+  border-color: rgba(255, 159, 10, 0.35);
 }
-
 .wellbeing-panel-box-medium:hover {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 1) 0%, rgba(255, 179, 0, 1) 100%);
+  background: rgba(255, 159, 10, 0.28);
 }
 
 .wellbeing-panel-box-medium-high {
-  background: linear-gradient(135deg, rgba(255, 152, 0, 0.95) 0%, rgba(251, 140, 0, 0.95) 100%);
-}
-
-.wellbeing-panel-box-medium-high:hover {
-  background: linear-gradient(135deg, rgba(255, 152, 0, 1) 0%, rgba(251, 140, 0, 1) 100%);
+  background: rgba(255, 149, 0, 0.20);
+  border-color: rgba(255, 149, 0, 0.38);
 }
 
 .wellbeing-panel-box-high {
-  background: linear-gradient(135deg, rgba(244, 67, 54, 0.95) 0%, rgba(229, 57, 53, 0.95) 100%);
-  animation: alertPulse 2s ease-in-out infinite;
-}
-
-.wellbeing-panel-box-high:hover {
-  background: linear-gradient(135deg, rgba(244, 67, 54, 1) 0%, rgba(229, 57, 53, 1) 100%);
+  background: rgba(255, 69, 58, 0.22);
+  border-color: rgba(255, 69, 58, 0.42);
+  animation: alertPulse 2.4s ease-in-out infinite;
 }
 
 @keyframes alertPulse {
-  0%, 100% {
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.15);
-  }
-  50% {
-    box-shadow: 0 5px 18px rgba(244, 67, 54, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.3);
-  }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,69,58,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(255,69,58,0.25); }
 }
 
-/* Panel Icon */
 .wellbeing-panel-icon {
-  color: rgba(255, 255, 255, 1);
-  icon-size: 16px;
-  padding: 0;
-  margin: 0;
+  color: #FFFFFF;
+  icon-size: 14px;
 }
 
-/* Panel Label - Larger, brighter text with proper width */
 .wellbeing-panel-label {
-  color: rgba(255, 255, 255, 1);
-  font-weight: 700;
+  color: #FFFFFF;
+  font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.5px;
-  padding: 0;
-  margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  min-width: 110px; /* Increased to fit "Summoning…" text */
+  letter-spacing: 0.2px;
+  min-width: 110px;
 }
 
-/* Live indicator pulse animation */
-@keyframes livePulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-/* Menu Container - GPU-optimized with same visual depth */
+/* ── MAIN MENU CONTAINER ─────────────────────────────────── */
 .wellbeing-menu {
-  min-width: 350px;
-  padding: 18px;
-  /* Solid opaque background with subtle warmth */
-  background-color: #1a1c1e;
-  background-image:
-    linear-gradient(180deg, #1c1e20 0%, #18191b 100%),
-    radial-gradient(circle at top right, rgba(143, 164, 138, 0.08), transparent 50%);
-  border-radius: 20px;
-  /* Simplified shadows for better performance */
+  min-width: 360px;
+  padding: 0;
+  background-color: rgba(28, 28, 30, 0.92);
+  background-image: linear-gradient(180deg,
+    rgba(44, 44, 46, 0.95) 0%,
+    rgba(28, 28, 30, 0.98) 100%);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 255, 255, 0.15);
-  /* Brighter sage border with subtle glow */
-  border: 2.5px solid rgba(143, 164, 138, 0.7);
-  /* GPU acceleration hints */
+    0 24px 64px rgba(0, 0, 0, 0.85),
+    0 1px 0 rgba(255,255,255,0.06) inset;
   will-change: opacity;
-  transform: translateZ(0);
 }
 
 @keyframes menuSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
 }
 
-/* Combined Header + Quote Section - Static for performance */
+/* ── HEADER — "Steven iPhone XS Max" style ───────────────── */
 .wellbeing-header-quote-section {
-  padding: 18px 20px;
-  margin: 10px 0 12px 0;
-  /* Richer sage gradient with depth */
-  background:
-    linear-gradient(135deg, rgba(143, 164, 138, 0.22) 0%, rgba(96, 125, 98, 0.18) 100%),
-    linear-gradient(180deg, rgba(143, 164, 138, 0.05) 0%, transparent 100%);
-  border-radius: 16px;
-  border: 1px solid rgba(143, 164, 138, 0.5);
-  /* Simplified shadows for performance */
-  box-shadow: 0 0 32px rgba(143, 164, 138, 0.35);
-  /* GPU acceleration */
-  transform: translateZ(0);
+  padding: 20px 20px 16px 20px;
+  margin: 0;
+  background: linear-gradient(160deg,
+    rgba(10, 132, 255, 0.14) 0%,
+    rgba(10, 132, 255, 0.04) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  border-radius: 22px 22px 0 0;
 }
 
-@keyframes headerPulse {
-  0%, 100% {
-    opacity: 0.95;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.wellbeing-header-quote-box {
-  spacing: 10px;
-}
-
-.wellbeing-header-title-box {
-  spacing: 12px;
-}
+.wellbeing-header-quote-box  { spacing: 6px; }
+.wellbeing-header-title-box  { spacing: 10px; }
 
 .wellbeing-header-icon {
-  color: rgba(143, 164, 138, 1);
-  margin: 0;
-}
-
-@keyframes iconGlow {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
+  color: #0A84FF;
 }
 
 .wellbeing-title {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  letter-spacing: 0.3px;
+  color: #FFFFFF;
+  letter-spacing: -0.3px;
 }
 
-/* Stats Display - Animated cards with high opacity */
+/* ── TOTAL TIME HERO CARD ────────────────────────────────── */
 .wellbeing-stat-item {
-  padding: 14px 16px;
-  margin: 6px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(45, 55, 50, 0.95) 0%, rgba(35, 45, 40, 0.98) 100%);
-  border: 1px solid rgba(143, 164, 138, 0.4);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
-  animation: statFadeIn 0.3s ease-out forwards;
-  opacity: 0;
-}
-
-@keyframes statFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  padding: 16px 18px;
+  margin: 8px 16px;
+  border-radius: 16px;
+  background: rgba(44, 44, 46, 0.80);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .wellbeing-stat-item:hover {
-  background: linear-gradient(135deg, rgba(60, 70, 65, 0.95) 0%, rgba(50, 60, 55, 0.98) 100%);
-  border-color: rgba(143, 164, 138, 0.6);
-  box-shadow: 0 4px 12px rgba(143, 164, 138, 0.3);
-  transform: translateX(4px) scale(1.02);
+  background: rgba(58, 58, 60, 0.90);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.40);
 }
 
-.wellbeing-stat-box {
-  spacing: 14px;
-}
-
-.wellbeing-stat-icon {
-  color: rgba(143, 164, 138, 1);
-  margin: 0;
-}
+.wellbeing-stat-box   { spacing: 12px; }
+.wellbeing-stat-icon  { color: #0A84FF; }
 
 .wellbeing-stat-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(235, 235, 245, 0.85);
 }
 
-/* Menu Items - Animated action buttons with high opacity */
-/* NOTE: Removed generic .popup-menu-item styling to prevent affecting other extensions */
-/* All menu items now use specific wellbeing- prefixed classes */
-
-/* Separator styling - Minimal dividers */
-/* NOTE: Using GNOME's default separator styling to avoid conflicts */
-
-/* Switch styling - Scoped to wellbeing menu only to avoid conflicts */
-.wellbeing-menu .toggle-switch {
-  width: 50px;
-  height: 28px;
-  background-color: rgba(70, 70, 75, 0.95);
-  border-radius: 15px;
-  border: 2px solid rgba(50, 50, 55, 1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
-}
-
-.wellbeing-menu .toggle-switch:checked {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 1) 0%, rgba(96, 125, 98, 1) 100%);
-  border-color: rgba(143, 164, 138, 1);
-  box-shadow: 0 0 18px rgba(143, 164, 138, 0.7), inset 0 1px 3px rgba(255, 255, 255, 0.3);
-}
-
-@keyframes toggleGlow {
-  0%, 100% {
-    opacity: 0.95;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.wellbeing-menu .toggle-switch-label {
-  color: rgba(255, 255, 255, 1);
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* Icon in switch menu item - namespaced to avoid conflicts */
-.wellbeing-switch-icon {
-  color: rgba(143, 164, 138, 1);
-  margin-right: 10px;
-  icon-size: 18px;
-}
-
-/* Light theme adjustments - auto-detects system theme */
-@media (prefers-color-scheme: light) {
-  .wellbeing-menu {
-    background-color: rgba(250, 250, 252, 0.98);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  }
-
-  .wellbeing-header {
-    background-color: rgba(100, 200, 170, 0.12);
-    border-color: rgba(100, 200, 170, 0.35);
-  }
-
-  .wellbeing-title {
-    color: rgba(30, 30, 35, 0.95);
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-  }
-
-  .wellbeing-stat-item {
-    background-color: rgba(240, 244, 248, 0.9);
-    border-color: rgba(100, 200, 170, 0.3);
-  }
-
-  .wellbeing-stat-item:hover {
-    background-color: rgba(230, 240, 245, 1);
-    border-color: rgba(100, 200, 170, 0.45);
-  }
-
-  .wellbeing-stat-label {
-    color: rgba(30, 30, 35, 0.95);
-    text-shadow: none;
-  }
-}
-
-/* Large stat label (for main time displays) */
 .wellbeing-stat-label-large {
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-size: 36px;
+  font-weight: 300;
+  color: #FFFFFF;
+  letter-spacing: -1px;
 }
 
-/* Duration Selector Section */
-.wellbeing-section-header {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  padding: 10px 12px 6px 12px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.18) 0%, rgba(96, 125, 98, 0.15) 100%);
+/* ── CHART SECTION ───────────────────────────────────────── */
+.wellbeing-stats-graph-item {
+  padding: 12px 8px 8px 8px;
+  margin: 4px 16px 8px 16px;
+  border-radius: 16px;
+  background: rgba(44, 44, 46, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.wellbeing-stats-graph-box   { spacing: 8px; padding: 4px; }
+.wellbeing-stats-chart-box   { spacing: 3px; padding: 6px 4px; min-height: 100px; }
+
+.wellbeing-stats-bar-container {
+  spacing: 2px;
+  min-width: 26px;
+  max-width: 26px;
+  padding: 2px;
   border-radius: 8px;
-  min-width: 100%;
-  max-width: 100%;
+  min-height: 110px;
+  max-height: 110px;
+  transition: background 0.15s ease;
 }
 
-.wellbeing-duration-box {
-  spacing: 8px;
-  padding: 8px;
+.wellbeing-stats-bar-container:hover { background: rgba(255,255,255,0.07); }
+.wellbeing-stats-bar-hover            { background: rgba(255,255,255,0.10); }
+.wellbeing-stats-bar-area             { min-height: 85px; spacing: 2px; }
+
+/* iOS-style coloured bars */
+.wellbeing-stats-bar-screen {
+  background: linear-gradient(180deg, #30D158 0%, #25A244 100%);
+  border-radius: 5px 5px 2px 2px;
+  min-width: 18px;
+  min-height: 2px;
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.35);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
 }
+
+.wellbeing-stats-bar-screen-medium {
+  background: linear-gradient(180deg, #FF9F0A 0%, #CC7C00 100%);
+  border-radius: 5px 5px 2px 2px;
+  min-width: 18px; min-height: 2px;
+  box-shadow: 0 0 8px rgba(255,159,10,0.35);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.wellbeing-stats-bar-screen-medium-high {
+  background: linear-gradient(180deg, #FF6B00 0%, #CC5200 100%);
+  border-radius: 5px 5px 2px 2px;
+  min-width: 18px; min-height: 2px;
+  box-shadow: 0 0 8px rgba(255,107,0,0.35);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.wellbeing-stats-bar-screen-high {
+  background: linear-gradient(180deg, #FF453A 0%, #CC2820 100%);
+  border-radius: 5px 5px 2px 2px;
+  min-width: 18px; min-height: 2px;
+  box-shadow: 0 0 8px rgba(255,69,58,0.35);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.wellbeing-stats-pomo-indicator {
+  background: linear-gradient(135deg, #FF453A 0%, #FF9F0A 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  box-shadow: 0 2px 6px rgba(255,69,58,0.5);
+  margin-bottom: 2px;
+}
+
+.wellbeing-stats-day-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(235, 235, 245, 0.45);
+  text-align: center;
+  padding-top: 4px;
+  letter-spacing: 0.2px;
+}
+
+/* ── TOOLTIP ─────────────────────────────────────────────── */
+.wellbeing-stats-tooltip {
+  background: rgba(44, 44, 46, 0.98);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.70);
+  margin-bottom: 8px;
+  spacing: 3px;
+  min-width: 86px;
+}
+
+.wellbeing-stats-tooltip-date {
+  font-size: 11px; font-weight: 600;
+  color: rgba(235,235,245,0.50);
+  text-align: center; letter-spacing: 0.3px;
+}
+
+.wellbeing-stats-tooltip-time {
+  font-size: 18px; font-weight: 700;
+  color: #FFFFFF; text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.wellbeing-stats-tooltip-sessions {
+  font-size: 10px; font-weight: 500;
+  color: #FF9F0A; text-align: center;
+}
+
+/* ── SECTION HEADER ─────────────────────────────────────── */
+.wellbeing-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(235, 235, 245, 0.50);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 16px 18px 6px 18px;
+}
+
+/* ── DURATION PILL BUTTONS ──────────────────────────────── */
+.wellbeing-duration-box    { spacing: 6px; padding: 6px 16px; }
 
 .wellbeing-duration-button {
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(45, 55, 50, 0.95) 0%, rgba(35, 45, 40, 0.98) 100%);
-  border: 2px solid rgba(143, 164, 138, 0.4);
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 20px;
+  background: rgba(58, 58, 60, 0.80);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(235,235,245,0.85);
+  font-weight: 500;
   font-size: 13px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 60px;
+  transition: all 0.2s ease;
+  min-width: 52px;
 }
 
 .wellbeing-duration-button:hover {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.3) 0%, rgba(96, 125, 98, 0.25) 100%);
-  border-color: rgba(143, 164, 138, 0.6);
-  box-shadow: 0 3px 8px rgba(143, 164, 138, 0.3);
-  transform: translateY(-2px);
-}
-
-.wellbeing-duration-button:active {
-  transform: scale(0.95);
-  box-shadow: 0 1px 3px rgba(143, 164, 138, 0.4);
+  background: rgba(72, 72, 74, 0.90);
+  border-color: rgba(255,255,255,0.14);
 }
 
 .wellbeing-duration-button.wellbeing-duration-active {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 1) 0%, rgba(96, 125, 98, 1) 100%);
-  border-color: rgba(143, 164, 138, 1);
-  color: rgba(255, 255, 255, 1);
-  box-shadow: 0 4px 12px rgba(143, 164, 138, 0.6), inset 0 1px 3px rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+  background: #0A84FF;
+  border-color: rgba(10,132,255,0.80);
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(10,132,255,0.45);
 }
 
-.wellbeing-duration-button.wellbeing-duration-active:hover {
-  background: linear-gradient(135deg, rgba(130, 150, 125, 1) 0%, rgba(85, 115, 90, 1) 100%);
-  transform: translateY(-2px);
-}
-
-/* Statistics Section */
-.wellbeing-stats-header-box {
-  spacing: 16px;
-  padding: 8px 0;
-}
-
-.wellbeing-stats-toggle-box {
-  spacing: 6px;
-}
+/* ── STATS TOGGLE (Day/Week) ─────────────────────────────── */
+.wellbeing-stats-header-box  { spacing: 14px; padding: 6px 0; }
+.wellbeing-stats-toggle-box  { spacing: 4px; }
 
 .wellbeing-stats-toggle-button {
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45, 55, 50, 0.7) 0%, rgba(35, 45, 40, 0.75) 100%);
-  border: 1px solid rgba(143, 164, 138, 0.3);
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 16px;
+  background: rgba(58, 58, 60, 0.70);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: rgba(235,235,245,0.65);
+  font-weight: 500;
   font-size: 12px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 50px;
+  transition: all 0.18s ease;
+  min-width: 48px;
 }
 
 .wellbeing-stats-toggle-button:hover {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.3) 0%, rgba(96, 125, 98, 0.25) 100%);
-  border-color: rgba(143, 164, 138, 0.5);
-  transform: scale(1.05);
+  background: rgba(72,72,74,0.80);
 }
 
 .wellbeing-stats-toggle-button.wellbeing-stats-toggle-active {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.85) 0%, rgba(96, 125, 98, 0.85) 100%);
-  border-color: rgba(143, 164, 138, 1);
-  color: rgba(255, 255, 255, 1);
-  box-shadow: 0 2px 8px rgba(143, 164, 138, 0.4);
-}
-
-/* Motivational Quote Section */
-.wellbeing-quote-item {
-  padding: 16px 20px;
-  margin: 8px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.18) 0%, rgba(96, 125, 98, 0.15) 100%);
-  border: 1px solid rgba(143, 164, 138, 0.35);
-}
-
-.wellbeing-quote-label-main {
-  font-size: 14px;
+  background: rgba(10, 132, 255, 0.85);
+  border-color: rgba(10,132,255,0.60);
+  color: #FFFFFF;
   font-weight: 600;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  line-height: 1.6;
-  text-align: center;
+  box-shadow: 0 2px 8px rgba(10,132,255,0.35);
 }
 
-.wellbeing-quote-label-compact {
-  font-size: 13px;
-  font-weight: 500;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.85);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  line-height: 1.5;
-  text-align: center;
-  margin-top: 2px;
-  max-width: 320px;
-}
-
-/* Merged Focus Session Section - Static for performance */
+/* ── FOCUS SESSION CARD ──────────────────────────────────── */
 .wellbeing-focus-section {
   padding: 16px 18px;
-  margin: 10px 0;
-  border-radius: 14px;
-  /* Richer orange gradient with depth */
-  background:
-    linear-gradient(135deg, rgba(255, 140, 0, 0.14) 0%, rgba(255, 99, 71, 0.10) 100%),
-    radial-gradient(circle at top, rgba(255, 140, 0, 0.08), transparent 60%);
-  border: 1px solid rgba(255, 140, 0, 0.45);
-  /* Simplified shadows for performance */
-  box-shadow: 0 4px 20px rgba(255, 140, 0, 0.25);
-  /* GPU acceleration */
-  transform: translateZ(0);
+  margin: 6px 16px;
+  border-radius: 16px;
+  background: rgba(255, 159, 10, 0.10);
+  border: 1px solid rgba(255, 159, 10, 0.28);
+  box-shadow: 0 2px 12px rgba(255,159,10,0.12);
 }
 
-@keyframes focusPulse {
-  0%, 100% {
-    opacity: 0.95;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.wellbeing-focus-main-box {
-  spacing: 12px;
-}
+.wellbeing-focus-main-box { spacing: 10px; }
 
 .wellbeing-focus-title {
   font-size: 16px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  text-align: center;
-  padding-bottom: 4px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: -0.2px;
 }
 
 .wellbeing-pomo-progress-container {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 5px;
+  background: rgba(255,255,255,0.10);
   border-radius: 3px;
   margin: 8px 0;
   overflow: hidden;
@@ -476,487 +347,256 @@
 
 .wellbeing-pomo-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, rgba(255, 140, 0, 1) 0%, rgba(255, 99, 71, 1) 100%);
+  background: linear-gradient(90deg, #FF9F0A 0%, #FF6B00 100%);
   border-radius: 3px;
-  transition: width 0.3s ease;
-  box-shadow: 0 0 8px rgba(255, 140, 0, 0.6);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 6px rgba(255,159,10,0.6);
 }
 
-.wellbeing-duration-box-inline {
-  spacing: 8px;
-}
-
-.wellbeing-duration-button-compact {
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45, 55, 72, 0.8) 0%, rgba(35, 45, 62, 0.85) 100%);
-  border: 2px solid rgba(255, 140, 0, 0.3);
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-  font-size: 12px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 50px;
-}
-
-.wellbeing-duration-button-compact:hover {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3) 0%, rgba(255, 99, 71, 0.25) 100%);
-  border-color: rgba(255, 140, 0, 0.6);
-  box-shadow: 0 3px 8px rgba(255, 140, 0, 0.3);
-  transform: translateY(-2px);
-}
-
-.wellbeing-duration-button-compact:active {
-  transform: scale(0.95);
-  box-shadow: 0 1px 3px rgba(255, 140, 0, 0.4);
-}
-
-.wellbeing-duration-button-compact.wellbeing-duration-active {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 1) 0%, rgba(255, 99, 71, 1) 100%);
-  border-color: rgba(255, 140, 0, 1);
-  color: rgba(255, 255, 255, 1);
-  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.6), inset 0 1px 3px rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.wellbeing-duration-button-compact.wellbeing-duration-active:hover {
-  background: linear-gradient(135deg, rgba(255, 120, 0, 1) 0%, rgba(255, 79, 51, 1) 100%);
-  transform: translateY(-2px);
-}
-
-.wellbeing-focus-controls-box {
-  spacing: 8px;
-}
-
-.wellbeing-pomo-button-inline {
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45, 55, 72, 0.8) 0%, rgba(35, 45, 62, 0.85) 100%);
-  border: 2px solid rgba(255, 140, 0, 0.3);
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  min-width: 70px;
-}
-
-.wellbeing-pomo-button-inline:hover {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3) 0%, rgba(255, 99, 71, 0.25) 100%);
-  border-color: rgba(255, 140, 0, 0.6);
-  transform: scale(1.05);
-}
-
-.wellbeing-pomo-button-inline:active {
-  transform: scale(0.95);
-}
-
-.wellbeing-pomo-button-inline.wellbeing-button-start:hover {
-  border-color: rgba(0, 200, 100, 0.6);
-  box-shadow: 0 0 10px rgba(0, 200, 100, 0.3);
-}
-
-.wellbeing-pomo-button-inline.wellbeing-button-pause:hover {
-  border-color: rgba(255, 200, 0, 0.6);
-  box-shadow: 0 0 10px rgba(255, 200, 0, 0.3);
-}
-
-.wellbeing-pomo-button-inline.wellbeing-button-reset:hover {
-  border-color: rgba(255, 100, 100, 0.6);
-  box-shadow: 0 0 10px rgba(255, 100, 100, 0.3);
-}
-
-/* Compact Pomodoro Section */
+/* ── COMPACT POMODORO ────────────────────────────────────── */
 .wellbeing-pomo-section {
   padding: 12px 16px;
-  margin: 6px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(45, 55, 50, 0.95) 0%, rgba(35, 45, 40, 0.98) 100%);
-  border: 1px solid rgba(143, 164, 138, 0.4);
+  margin: 4px 16px;
+  border-radius: 14px;
+  background: rgba(44, 44, 46, 0.70);
+  border: 1px solid rgba(255,255,255,0.07);
 }
 
-.wellbeing-pomo-controls-container {
-  spacing: 16px;
-}
+.wellbeing-pomo-controls-container { spacing: 14px; }
+.wellbeing-pomo-label-box          { spacing: 8px; min-width: 110px; }
 
-.wellbeing-pomo-label-box {
-  spacing: 8px;
-  min-width: 120px;
-}
-
-.wellbeing-pomo-title-icon {
-  color: rgba(255, 140, 0, 1);
-}
+.wellbeing-pomo-title-icon  { color: #FF9F0A; }
 
 .wellbeing-pomo-title-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-size: 15px; font-weight: 600; color: #FFFFFF;
 }
 
-.wellbeing-pomo-buttons-box {
-  spacing: 6px;
-}
+.wellbeing-pomo-buttons-box { spacing: 6px; }
 
 .wellbeing-pomo-button {
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45, 55, 50, 0.95) 0%, rgba(35, 45, 40, 0.98) 100%);
-  border: 2px solid rgba(143, 164, 138, 0.4);
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 600;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  min-width: 70px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: rgba(58,58,60,0.85);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(235,235,245,0.90);
+  font-weight: 500; font-size: 12px;
+  transition: all 0.18s ease;
+  min-width: 68px;
 }
 
-.wellbeing-pomo-button:hover {
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.3) 0%, rgba(96, 125, 98, 0.25) 100%);
-  border-color: rgba(143, 164, 138, 0.6);
-  transform: scale(1.05);
+.wellbeing-pomo-button:hover        { background: rgba(72,72,74,0.95); transform: scale(1.03); }
+.wellbeing-pomo-button:active       { transform: scale(0.96); }
+.wellbeing-pomo-button-start:hover  { border-color: rgba(48,209,88,0.50); box-shadow: 0 0 8px rgba(48,209,88,0.20); }
+.wellbeing-pomo-button-pause:hover  { border-color: rgba(255,214,10,0.50); box-shadow: 0 0 8px rgba(255,214,10,0.20); }
+.wellbeing-pomo-button-reset:hover  { border-color: rgba(255,69,58,0.50);  box-shadow: 0 0 8px rgba(255,69,58,0.20);  }
+
+/* Inline compact variants */
+.wellbeing-duration-box-inline         { spacing: 6px; }
+.wellbeing-duration-button-compact {
+  padding: 5px 11px;
+  border-radius: 16px;
+  background: rgba(58,58,60,0.75);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: rgba(235,235,245,0.80);
+  font-weight: 500; font-size: 12px;
+  transition: all 0.18s ease; min-width: 46px;
+}
+.wellbeing-duration-button-compact:hover {
+  background: rgba(255,159,10,0.18);
+  border-color: rgba(255,159,10,0.40);
+}
+.wellbeing-duration-button-compact.wellbeing-duration-active {
+  background: #FF9F0A;
+  border-color: rgba(255,159,10,0.85);
+  color: #FFFFFF; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255,159,10,0.45);
 }
 
-.wellbeing-pomo-button:active {
-  transform: scale(0.95);
-}
+.wellbeing-focus-controls-box { spacing: 6px; }
 
-.wellbeing-pomo-button-start:hover {
-  border-color: rgba(0, 200, 100, 0.6);
+.wellbeing-pomo-button-inline {
+  padding: 7px 13px;
+  border-radius: 10px;
+  background: rgba(58,58,60,0.80);
+  border: 1px solid rgba(255,159,10,0.20);
+  color: rgba(235,235,245,0.90);
+  font-weight: 500; font-size: 12px;
+  transition: all 0.18s ease; min-width: 68px;
 }
+.wellbeing-pomo-button-inline:hover  { transform: scale(1.03); background: rgba(255,159,10,0.18); }
+.wellbeing-pomo-button-inline:active { transform: scale(0.96); }
+.wellbeing-button-start:hover        { border-color: rgba(48,209,88,0.55); }
+.wellbeing-button-pause:hover        { border-color: rgba(255,214,10,0.55); }
+.wellbeing-button-reset:hover        { border-color: rgba(255,69,58,0.55);  }
 
-.wellbeing-pomo-button-pause:hover {
-  border-color: rgba(255, 200, 0, 0.6);
-}
-
-.wellbeing-pomo-button-reset:hover {
-  border-color: rgba(255, 100, 100, 0.6);
-}
-
-/* Zen Music Section - Enhanced purple mystique */
+/* ── ZEN MUSIC CARD ──────────────────────────────────────── */
 .wellbeing-music-section {
   padding: 14px 18px;
-  margin: 8px 0;
-  border-radius: 14px;
-  /* Richer purple gradient with mystical depth */
-  background:
-    linear-gradient(135deg, rgba(75, 0, 130, 0.18) 0%, rgba(128, 0, 128, 0.13) 100%),
-    radial-gradient(circle at bottom right, rgba(186, 85, 211, 0.10), transparent 60%);
-  border: 1px solid rgba(186, 85, 211, 0.42);
-  /* Simplified shadows for performance */
-  box-shadow: 0 3px 16px rgba(186, 85, 211, 0.18);
-  /* GPU acceleration */
-  transform: translateZ(0);
+  margin: 6px 16px;
+  border-radius: 16px;
+  background: rgba(94, 92, 230, 0.10);
+  border: 1px solid rgba(94, 92, 230, 0.28);
+  box-shadow: 0 2px 12px rgba(94,92,230,0.10);
 }
 
-.wellbeing-music-container {
-  spacing: 16px;
-}
-
-.wellbeing-music-label-box {
-  spacing: 8px;
-  min-width: 120px;
-}
-
-.wellbeing-music-icon {
-  color: rgba(186, 85, 211, 1);
-}
-
-.wellbeing-music-main-box {
-  spacing: 8px;
-}
+.wellbeing-music-container { spacing: 14px; }
+.wellbeing-music-label-box { spacing: 8px; min-width: 110px; }
+.wellbeing-music-icon      { color: #5E5CE6; }
+.wellbeing-music-main-box  { spacing: 6px; }
 
 .wellbeing-music-title-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-size: 15px; font-weight: 600; color: #FFFFFF;
+  letter-spacing: -0.1px;
 }
 
 .wellbeing-music-status-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(186, 85, 211, 0.9);
+  font-size: 12px; font-weight: 400;
+  color: rgba(94, 92, 230, 0.90);
   font-style: italic;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  padding: 4px 0 0 0;
 }
 
-.wellbeing-music-controls-box {
-  spacing: 6px;
-}
+.wellbeing-music-controls-box { spacing: 6px; }
 
 .wellbeing-music-button {
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(75, 0, 130, 0.3) 0%, rgba(128, 0, 128, 0.25) 100%);
-  border: 2px solid rgba(186, 85, 211, 0.4);
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 600;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  min-width: 70px;
-}
-
-.wellbeing-music-button:hover {
-  background: linear-gradient(135deg, rgba(186, 85, 211, 0.4) 0%, rgba(147, 112, 219, 0.35) 100%);
-  border-color: rgba(186, 85, 211, 0.7);
-  transform: scale(1.05);
-  box-shadow: 0 0 15px rgba(186, 85, 211, 0.5);
-}
-
-.wellbeing-music-button:active {
-  transform: scale(0.95);
-}
-
-/* Statistics Graph - Enhanced card with better separation */
-.wellbeing-stats-graph-item {
-  padding: 14px 10px;
-  margin: 10px 0;
-  border-radius: 14px;
-  /* Richer card background with subtle texture */
-  background:
-    linear-gradient(135deg, rgba(40, 44, 46, 0.85) 0%, rgba(34, 38, 40, 0.9) 100%),
-    radial-gradient(circle at bottom left, rgba(143, 164, 138, 0.06), transparent 60%);
-  border: 1px solid rgba(143, 164, 138, 0.35);
-  /* Simplified shadows for performance */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  /* GPU acceleration */
-  transform: translateZ(0);
-}
-
-.wellbeing-stats-graph-box {
-  spacing: 12px;
-  padding: 8px;
-}
-
-.wellbeing-stats-chart-box {
-  spacing: 4px;
-  padding: 8px 4px;
-  min-height: 100px;
-  transition: none; /* Prevent any inherited transitions on layout */
-}
-
-.wellbeing-stats-bar-container {
-  spacing: 2px;
-  min-width: 24px;
-  max-width: 24px;
-  padding: 3px;
-  border-radius: 6px;
-  transition: background 0.2s ease; /* Only transition background, not layout properties */
-  min-height: 110px;
-  max-height: 110px;
-}
-
-.wellbeing-stats-bar-container:hover {
-  background: rgba(143, 164, 138, 0.18);
-}
-
-.wellbeing-stats-bar-hover {
-  background: rgba(143, 164, 138, 0.25);
-}
-
-.wellbeing-stats-bar-area {
-  min-height: 85px;
-  spacing: 2px;
-}
-
-/* Tooltip for graph bars - floating with blur */
-.wellbeing-stats-tooltip {
-  background: rgba(30, 40, 35, 0.98);
-  backdrop-filter: blur(10px);
-  padding: 10px 14px;
+  padding: 7px 13px;
   border-radius: 10px;
-  border: 2px solid rgba(143, 164, 138, 0.6);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
-  margin-bottom: 10px;
-  spacing: 4px;
-  min-width: 90px;
-  /* GPU acceleration for smooth animations */
-  will-change: opacity, transform;
-  transform: translateZ(0);
+  background: rgba(94,92,230,0.15);
+  border: 1px solid rgba(94,92,230,0.28);
+  color: rgba(235,235,245,0.90);
+  font-weight: 500; font-size: 12px;
+  transition: all 0.18s ease; min-width: 68px;
+}
+.wellbeing-music-button:hover {
+  background: rgba(94,92,230,0.28);
+  border-color: rgba(94,92,230,0.55);
+  transform: scale(1.03);
+  box-shadow: 0 0 12px rgba(94,92,230,0.30);
+}
+.wellbeing-music-button:active { transform: scale(0.96); }
+
+/* ── SWITCH ──────────────────────────────────────────────── */
+.wellbeing-menu .toggle-switch {
+  width: 48px; height: 26px;
+  background-color: rgba(72,72,74,0.90);
+  border-radius: 13px;
+  border: none;
+  transition: background 0.25s ease;
+}
+.wellbeing-menu .toggle-switch:checked {
+  background: #30D158;
+  box-shadow: 0 0 10px rgba(48,209,88,0.35);
+}
+.wellbeing-menu .toggle-switch-label {
+  color: rgba(235,235,245,0.90); font-weight: 500; font-size: 14px;
+}
+.wellbeing-switch-icon {
+  color: rgba(235,235,245,0.50); margin-right: 8px; icon-size: 16px;
 }
 
-.wellbeing-stats-tooltip-date {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(143, 164, 138, 1);
-  text-align: center;
+/* ── QUOTE / MOTIVATIONAL ────────────────────────────────── */
+.wellbeing-quote-item {
+  padding: 14px 18px;
+  margin: 4px 16px;
+  border-radius: 14px;
+  background: rgba(44,44,46,0.60);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.wellbeing-quote-label-main {
+  font-size: 14px; font-weight: 400; font-style: italic;
+  color: rgba(235,235,245,0.80); line-height: 1.55; text-align: center;
+}
+.wellbeing-quote-label-compact {
+  font-size: 12px; font-weight: 400; font-style: italic;
+  color: rgba(235,235,245,0.55); line-height: 1.45; text-align: center;
+  margin-top: 2px; max-width: 320px;
 }
 
-.wellbeing-stats-tooltip-time {
-  font-size: 16px;
-  font-weight: 900;
-  color: #ffffff;
-  text-align: center;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.wellbeing-stats-tooltip-sessions {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 152, 0, 0.95);
-  text-align: center;
-}
-
-.wellbeing-stats-bar-screen {
-  background: linear-gradient(180deg, rgba(76, 175, 80, 1) 0%, rgba(76, 175, 80, 0.7) 100%);
-  border-radius: 4px 4px 0 0;
-  min-width: 16px;
-  min-height: 2px;
-  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.4);
-  transition: all 0.3s ease;
-}
-
-.wellbeing-stats-bar-screen-medium {
-  background: linear-gradient(180deg, rgba(255, 193, 7, 1) 0%, rgba(255, 193, 7, 0.7) 100%);
-  border-radius: 4px 4px 0 0;
-  min-width: 16px;
-  min-height: 2px;
-  box-shadow: 0 2px 6px rgba(255, 193, 7, 0.4);
-  transition: all 0.3s ease;
-}
-
-.wellbeing-stats-bar-screen-medium-high {
-  background: linear-gradient(180deg, rgba(255, 152, 0, 1) 0%, rgba(255, 152, 0, 0.7) 100%);
-  border-radius: 4px 4px 0 0;
-  min-width: 16px;
-  min-height: 2px;
-  box-shadow: 0 2px 6px rgba(255, 152, 0, 0.4);
-  transition: all 0.3s ease;
-}
-
-.wellbeing-stats-bar-screen-high {
-  background: linear-gradient(180deg, rgba(244, 67, 54, 1) 0%, rgba(244, 67, 54, 0.7) 100%);
-  border-radius: 4px 4px 0 0;
-  min-width: 16px;
-  min-height: 2px;
-  box-shadow: 0 2px 6px rgba(244, 67, 54, 0.4);
-  transition: all 0.3s ease;
-}
-
-.wellbeing-stats-pomo-indicator {
-  background: linear-gradient(135deg, rgba(255, 99, 71, 1) 0%, rgba(255, 140, 0, 1) 100%);
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 6px rgba(255, 99, 71, 0.6);
-  margin-bottom: 2px;
-}
-
-.wellbeing-stats-day-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  text-align: center;
-  padding: 4px 0 0 0;
-}
-
-.wellbeing-stats-empty-state {
-  spacing: 12px;
-  padding: 30px;
-}
-
-.wellbeing-stats-empty-icon {
-  font-size: 48px;
-  text-align: center;
-  opacity: 0.7;
-}
-
-.wellbeing-stats-empty-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
-}
-
-.wellbeing-stats-empty-message {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  max-width: 250px;
-  line-height: 1.4;
-}
-
-.wellbeing-stats-no-data {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-  padding: 24px;
-  text-align: center;
-}
-
-/* Settings Button */
+/* ── SETTINGS ────────────────────────────────────────────── */
 .wellbeing-settings-item {
   padding: 10px 18px;
-  margin: 8px 0 0 0;
+  margin: 4px 8px 8px 8px;
+  border-radius: 12px;
+  transition: background 0.15s ease;
 }
-
-.wellbeing-settings-item:hover {
-  background: rgba(143, 164, 138, 0.2);
-  border-radius: 10px;
-}
-
-.wellbeing-settings-box {
-  spacing: 12px;
-}
-
-.wellbeing-settings-icon {
-  color: rgba(143, 164, 138, 1);
-}
-
+.wellbeing-settings-item:hover { background: rgba(255,255,255,0.06); }
+.wellbeing-settings-box        { spacing: 10px; }
+.wellbeing-settings-icon       { color: rgba(235,235,245,0.45); }
 .wellbeing-settings-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px; font-weight: 500; color: rgba(235,235,245,0.75);
 }
 
-/* Stats Legend */
+/* ── LEGEND ──────────────────────────────────────────────── */
 .wellbeing-stats-legend-box {
-  spacing: 16px;
-  padding: 8px 12px;
-  background: rgba(45, 55, 50, 0.5);
+  spacing: 14px; padding: 6px 12px;
+  background: rgba(44,44,46,0.50);
   border-radius: 8px;
-  border: 1px solid rgba(143, 164, 138, 0.2);
+  border: 1px solid rgba(255,255,255,0.06);
 }
-
-.wellbeing-stats-legend-item {
-  spacing: 6px;
-}
-
+.wellbeing-stats-legend-item { spacing: 5px; }
 .wellbeing-stats-legend-color-screen {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, rgba(143, 164, 138, 1) 0%, rgba(143, 164, 138, 0.8) 100%);
-  box-shadow: 0 2px 4px rgba(143, 164, 138, 0.3);
+  width: 14px; height: 14px; border-radius: 4px;
+  background: #30D158;
 }
-
 .wellbeing-stats-legend-color-pomo {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 99, 71, 1) 0%, rgba(255, 140, 0, 1) 100%);
-  box-shadow: 0 2px 4px rgba(255, 99, 71, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 11px; height: 11px; border-radius: 50%;
+  background: linear-gradient(135deg, #FF453A, #FF9F0A);
+  border: 2px solid rgba(255,255,255,0.25);
 }
-
 .wellbeing-stats-legend-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px; font-weight: 500;
+  color: rgba(235,235,245,0.60);
 }
 
-/* Stats Summary */
+/* ── STATS SUMMARY ───────────────────────────────────────── */
 .wellbeing-stats-summary-item {
-  padding: 10px 12px;
-  margin: 4px 0;
+  padding: 9px 12px; margin: 3px 0;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(143, 164, 138, 0.18) 0%, rgba(96, 125, 98, 0.15) 100%);
-  border: 1px solid rgba(143, 164, 138, 0.3);
+  background: rgba(44,44,46,0.60);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.wellbeing-stats-summary-label {
+  font-size: 12px; font-weight: 500;
+  color: rgba(235,235,245,0.85);
 }
 
-.wellbeing-stats-summary-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+/* ── EMPTY STATE ─────────────────────────────────────────── */
+.wellbeing-stats-empty-state  { spacing: 10px; padding: 28px; }
+.wellbeing-stats-empty-icon   { font-size: 44px; text-align: center; opacity: 0.5; }
+.wellbeing-stats-empty-title  { font-size: 15px; font-weight: 600; color: rgba(235,235,245,0.80); text-align: center; }
+.wellbeing-stats-empty-message {
+  font-size: 12px; font-weight: 400;
+  color: rgba(235,235,245,0.45);
+  text-align: center; max-width: 240px; line-height: 1.4;
+}
+.wellbeing-stats-no-data {
+  font-size: 13px; font-weight: 400;
+  color: rgba(235,235,245,0.40);
+  font-style: italic; padding: 22px; text-align: center;
+}
+
+/* ── LIVE-PULSE ANIMATION ────────────────────────────────── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.5; }
+}
+
+/* ── LIGHT-THEME OVERRIDES ───────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  .wellbeing-menu {
+    background-color: rgba(242,242,247,0.97);
+    border-color: rgba(0,0,0,0.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .wellbeing-header-quote-section {
+    background: rgba(10,132,255,0.07);
+    border-bottom-color: rgba(0,0,0,0.06);
+  }
+  .wellbeing-title              { color: rgba(0,0,0,0.90); }
+  .wellbeing-stat-item          { background: rgba(255,255,255,0.90); border-color: rgba(0,0,0,0.06); }
+  .wellbeing-stat-label         { color: rgba(0,0,0,0.65); }
+  .wellbeing-stat-label-large   { color: rgba(0,0,0,0.90); }
+  .wellbeing-stats-day-label    { color: rgba(0,0,0,0.40); }
+  .wellbeing-section-header     { color: rgba(0,0,0,0.40); }
+  .wellbeing-settings-label     { color: rgba(0,0,0,0.65); }
+  .wellbeing-menu .toggle-switch { background-color: rgba(0,0,0,0.12); }
 }
