@@ -41,7 +41,9 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._pomoRunning = false;
         this._pomoCount = 0; // Track completed Pomodoros for long breaks
         this._breakReminders = this._settings.get_boolean('break-reminders');
-        this._lastBreakNotification = 0;
+        // Start the interval from now — initializing to 0 fired a notification
+        // on every extension reload (lock screen, toggling other extensions)
+        this._lastBreakNotification = Math.floor(Date.now() / 1000);
 
         // Quote rotation state (change every 1 hour)
         this._lastQuoteChange = Date.now();
@@ -60,10 +62,11 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._lastStatsSave = 0;
         this._lastStatsUpdate = 0; // Track when stats view was last updated (for performance)
         this._statsSaveInterval = 60000; // Save stats every 60 seconds
-        this._lastRecordedDate = new Date().toISOString().split('T')[0]; // Track day changes
+        this._lastRecordedDate = this._localDateStr(new Date()); // Track day changes
         this._finalizedDays = new Set(); // Track which days are finalized (never recalculate)
         this._pendingSave = false; // Debounce flag for save operations
         this._saveTimeout = null; // Timeout for debounced saves
+        this._menuOpenIdleId = null; // Deferred stats refresh on menu open
         this._loadStats();
 
         this._buildUI();
@@ -82,6 +85,15 @@ class WellbeingIndicator extends PanelMenu.Button {
                 this._pomoRemaining = this._pomoDuration;
                 this._updateDurationButtons();
                 this._updateUI();
+            })
+        );
+        this._settingsChangedIds.push(
+            this._settings.connect('changed::break-reminders', () => {
+                const state = this._settings.get_boolean('break-reminders');
+                this._breakReminders = state;
+                this._breakToggle.setToggleState(state);
+                if (state)
+                    this._lastBreakNotification = Math.floor(Date.now() / 1000);
             })
         );
 
@@ -134,14 +146,22 @@ class WellbeingIndicator extends PanelMenu.Button {
         });
     }
 
+    _localDateStr(date) {
+        // toISOString() returns the UTC date — wrong day key for any non-UTC timezone
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
     _recordDailyStats(date, screenTimeSeconds) {
-        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateStr = this._localDateStr(date);
         this._stats.daily[dateStr] = screenTimeSeconds;
         this._saveStats();
     }
 
     _recordPomodoro(date) {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = this._localDateStr(date);
         if (!this._stats.pomodoros[dateStr]) {
             this._stats.pomodoros[dateStr] = 0;
         }
@@ -477,8 +497,12 @@ class WellbeingIndicator extends PanelMenu.Button {
         // Update stats when menu opens - deferred for instant opening
         this.menu.connect('open-state-changed', (_menu, open) => {
             if (open) {
+                if (this._menuOpenIdleId) {
+                    GLib.Source.remove(this._menuOpenIdleId);
+                    this._menuOpenIdleId = null;
+                }
                 // Defer updates to next idle cycle for instant menu opening
-                GLib.idle_add(GLib.PRIORITY_LOW, () => {
+                this._menuOpenIdleId = GLib.idle_add(GLib.PRIORITY_LOW, () => {
                     // Only update stats if they're stale (no cache invalidation for instant opening)
                     const now = Date.now();
                     const statsCacheTime = 10000; // Update stats only if menu was closed for 10+ seconds
@@ -494,6 +518,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                         this._recordDailyStats(new Date(), screenTimeSeconds);
                     }
 
+                    this._menuOpenIdleId = null;
                     return GLib.SOURCE_REMOVE;
                 });
             }
@@ -542,7 +567,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date(now);
             date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = this._localDateStr(date);
 
             const screenTime = this._stats.daily[dateStr] || 0;
             const pomodoros = this._stats.pomodoros[dateStr] || 0;
@@ -925,7 +950,7 @@ class WellbeingIndicator extends PanelMenu.Button {
     _getDailyScreenTimeSeconds() {
         // Helper method to get screen time in seconds (synchronous wrapper)
         const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
+        const dateStr = this._localDateStr(now);
 
         // Use cached live seconds if available (updated by async background task)
         if (this._cachedLiveSeconds !== undefined && this._cachedLiveSeconds > 0) {
@@ -1000,7 +1025,7 @@ class WellbeingIndicator extends PanelMenu.Button {
     _updateLiveScreenTime() {
         // Efficiently update only TODAY's screen time (runs every 5 seconds)
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = this._localDateStr(now);
         const homeDir = GLib.get_home_dir();
         const historyPath = `${homeDir}/.local/share/gnome-shell/session-active-history.json`;
         const file = Gio.File.new_for_path(historyPath);
@@ -1032,7 +1057,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
                     // Capture current date inside callback to prevent race conditions
                     const callbackDate = new Date();
-                    const callbackDateStr = callbackDate.toISOString().split('T')[0];
+                    const callbackDateStr = this._localDateStr(callbackDate);
 
                     // Only update TODAY's screen time (prevent overwriting wrong day due to async delay)
                     if (callbackDateStr === todayStr) {
@@ -1045,7 +1070,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                     for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
                         const pastDate = new Date(callbackDate);
                         pastDate.setDate(pastDate.getDate() - daysAgo);
-                        const pastDateStr = pastDate.toISOString().split('T')[0];
+                        const pastDateStr = this._localDateStr(pastDate);
 
                         // Skip finalized days - they should NEVER change
                         if (this._finalizedDays.has(pastDateStr)) {
@@ -1351,10 +1376,10 @@ class WellbeingIndicator extends PanelMenu.Button {
             }
 
             // Monitor process exit to detect failures
-            this._musicProcess.wait_async(null, (_proc, res) => {
+            this._musicProcess.wait_async(null, (proc, res) => {
                 try {
-                    this._musicProcess.wait_finish(res);
-                    const exitCode = this._musicProcess.get_exit_status();
+                    proc.wait_finish(res);
+                    const exitCode = proc.get_exit_status();
 
                     // If we're still "playing" but process exited with error, try next stream
                     if (this._musicPlaying && exitCode !== 0 && this._musicRetryCount < 3) {
@@ -1492,6 +1517,10 @@ class WellbeingIndicator extends PanelMenu.Button {
         if (this._saveTimeout) {
             GLib.Source.remove(this._saveTimeout);
             this._saveTimeout = null;
+        }
+        if (this._menuOpenIdleId) {
+            GLib.Source.remove(this._menuOpenIdleId);
+            this._menuOpenIdleId = null;
         }
         if (this._musicPlaying) {
             this._stopZenMusic();
