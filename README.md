@@ -18,6 +18,9 @@ Reads GNOME's native session history for accurate, privacy-respecting usage data
 - Color-coded weekly bar graph (green → red by usage)
 - Hover tooltips on each bar showing date, time, and pomodoro count
 - Historical data finalized at midnight — no recalculation drift
+- Crash-aware accuracy: powered-off time is never counted as screen time,
+  even after unclean shutdowns — a [known GNOME bug](https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/8289)
+  that affects GNOME's own Wellbeing panel
 
 ### Focus Sessions (Pomodoro Timer)
 Inline duration controls (15/25/45/60 min), progress bar in the panel, and sound/visual alerts on completion.
@@ -147,7 +150,7 @@ gnome-extensions enable screentime@mehedi.io
 
 | | |
 |---|---|
-| GNOME Shell | 45, 46, 47, 48, 49 |
+| GNOME Shell | 45, 46, 47, 48, 49, 50 |
 | Platform | Linux |
 | Optional | `mpv` for zen music |
 
@@ -155,6 +158,12 @@ gnome-extensions enable screentime@mehedi.io
 ## Contributing
 
 Issues and pull requests are welcome. Check the [issue tracker](https://github.com/mH-13/wellbeing-widget/issues) for open bugs or feature requests.
+
+Changes to the screen-time math must keep the unit tests green:
+
+```bash
+gjs -m tests/test-screen-time.js
+```
 
 
 ## License
