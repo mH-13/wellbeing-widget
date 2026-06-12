@@ -206,6 +206,7 @@ cd ~/.local/share/gnome-shell/extensions/screentime@mehedi.io
 zip -r wellbeing-widget.zip \
   extension.js \
   prefs.js \
+  lib/ \
   stylesheet.css \
   metadata.json \
   schemas/ \
