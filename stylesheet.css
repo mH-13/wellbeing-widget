@@ -631,6 +631,17 @@
   border-color: rgba(255, 100, 100, 0.6);
 }
 
+/* Persistent state: timer running (green) / paused-resumable (amber) */
+.wellbeing-pomo-button-engaged {
+  background: linear-gradient(135deg, rgba(0, 200, 100, 0.30) 0%, rgba(96, 125, 98, 0.35) 100%);
+  border-color: rgba(0, 200, 100, 0.7);
+}
+
+.wellbeing-pomo-button-paused {
+  background: linear-gradient(135deg, rgba(255, 200, 0, 0.28) 0%, rgba(255, 170, 0, 0.20) 100%);
+  border-color: rgba(255, 200, 0, 0.7);
+}
+
 /* Zen Music Section - Enhanced purple mystique */
 .wellbeing-music-section {
   padding: 14px 18px;
@@ -705,6 +716,13 @@
 
 .wellbeing-music-button:active {
   transform: scale(0.95);
+}
+
+/* Persistent state: music currently playing */
+.wellbeing-music-button-engaged {
+  background: linear-gradient(135deg, rgba(186, 85, 211, 0.45) 0%, rgba(147, 112, 219, 0.40) 100%);
+  border-color: rgba(186, 85, 211, 0.85);
+  box-shadow: 0 0 12px rgba(186, 85, 211, 0.45);
 }
 
 /* Statistics Graph - Enhanced card with better separation */
