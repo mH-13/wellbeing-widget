@@ -607,7 +607,13 @@ class WellbeingIndicator extends PanelMenu.Button {
 
         // Connect signals
         this._startPomodoro.connect('clicked', () => this._startPomo());
-        this._pausePomodoro.connect('clicked', () => this._pausePomo());
+        // Pause toggles: pauses while running, resumes while paused
+        this._pausePomodoro.connect('clicked', () => {
+            if (this._pomoRunning)
+                this._pausePomo();
+            else if (this._pomoRemaining < this._pomoDuration)
+                this._startPomo();
+        });
         this._resetPomodoro.connect('clicked', () => this._resetPomo());
         this._playMusicBtn.connect('clicked', () => this._playZenMusic());
         this._stopMusicBtn.connect('clicked', () => this._stopZenMusic());
@@ -1313,9 +1319,12 @@ class WellbeingIndicator extends PanelMenu.Button {
 
     _startPomo() {
         if (this._pomoRunning) return;
+        const isResume = this._pomoRemaining < this._pomoDuration;
         this._pomoRunning = true;
 
-        if (this._settings.get_boolean('visual-alerts')) {
+        // Only a fresh session announces itself — resuming after a pause
+        // used to fire the same notification every time
+        if (!isResume && this._settings.get_boolean('visual-alerts')) {
             Main.notify('Focus Session Started', 'Stay concentrated! Timer is running.');
         }
 
@@ -1335,6 +1344,27 @@ class WellbeingIndicator extends PanelMenu.Button {
             }
             return GLib.SOURCE_CONTINUE;
         });
+
+        this._updatePomoButtons();
+    }
+
+    _updatePomoButtons() {
+        if (!this._startPomodoro || !this._pausePomodoro)
+            return;
+        const paused = !this._pomoRunning && this._pomoRemaining < this._pomoDuration;
+
+        this._startPomodoro.label = this._pomoRunning ? '● Running' : '▶ Start';
+        this._pausePomodoro.label = paused ? '▶ Resume' : '⏸ Pause';
+
+        if (this._pomoRunning)
+            this._startPomodoro.add_style_class_name('wellbeing-pomo-button-engaged');
+        else
+            this._startPomodoro.remove_style_class_name('wellbeing-pomo-button-engaged');
+
+        if (paused)
+            this._pausePomodoro.add_style_class_name('wellbeing-pomo-button-paused');
+        else
+            this._pausePomodoro.remove_style_class_name('wellbeing-pomo-button-paused');
     }
 
     _pomoCompleted() {
@@ -1376,6 +1406,7 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._pomoTimer = null;
         }
         this._pomoRunning = false;
+        this._updatePomoButtons();
         this._updateUI();
     }
 
@@ -1383,6 +1414,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._pausePomo();
         this._pomoDuration = this._settings.get_int('pomodoro-duration') * 60;
         this._pomoRemaining = this._pomoDuration;
+        this._updatePomoButtons();
         this._updateUI();
     }
 
@@ -1397,17 +1429,32 @@ class WellbeingIndicator extends PanelMenu.Button {
         return { short, full };
     }
 
+    _setMusicButtonState(playing) {
+        if (!this._playMusicBtn)
+            return;
+        this._playMusicBtn.label = playing ? '♫ Playing' : '▶ Play';
+        if (playing)
+            this._playMusicBtn.add_style_class_name('wellbeing-music-button-engaged');
+        else
+            this._playMusicBtn.remove_style_class_name('wellbeing-music-button-engaged');
+    }
+
     _playZenMusic() {
         if (this._musicPlaying) return;
+
+        // Fresh attempt always starts from the first stream — stale retry
+        // state used to leave Play stuck on the last (failed) stream
+        this._currentStreamIndex = 0;
+        this._musicRetryCount = 0;
 
         // Free lofi/zen radio streams (no downloads needed)
         const streams = [
             {name: 'Calm Radio - Meditation', url: 'https://streams.calmradio.com/api/39/128/stream'},
             {name: 'SomaFM - Drone Zone', url: 'https://ice1.somafm.com/dronezone-128-mp3'},
-            {name: 'Lofi Girl Radio', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'}
+            {name: 'SomaFM - Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3'}
         ];
 
-        this._tryPlayStream(streams, this._currentStreamIndex);
+        this._tryPlayStream(streams, 0);
     }
 
     _tryPlayStream(streams, streamIndex) {
@@ -1418,6 +1465,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 this._musicStatusLabel.text = '⚠️ Unable to play music';
             }
             this._musicPlaying = false;
+            this._setMusicButtonState(false);
 
             // Check if mpv is installed
             try {
@@ -1460,6 +1508,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
             this._musicPlaying = true;
             this._startMusicAnimation();
+            this._setMusicButtonState(true);
 
             // Update status label
             if (this._musicStatusLabel) {
@@ -1501,6 +1550,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 if (this._musicStatusLabel) {
                     this._musicStatusLabel.text = '⚠️ mpv not installed';
                 }
+                this._setMusicButtonState(false);
                 Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
             }
         }
@@ -1526,6 +1576,7 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._currentStreamIndex = 0;
             this._musicRetryCount = 0;
             this._stopMusicAnimation();
+            this._setMusicButtonState(false);
 
             // Update status label
             if (this._musicStatusLabel) {
@@ -1540,6 +1591,7 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._musicPlaying = false;
             this._musicProcess = null;
             this._musicCancellable = null;
+            this._setMusicButtonState(false);
         }
     }
 
