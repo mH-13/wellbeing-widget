@@ -24,6 +24,13 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {
+    calculateDayScreenTime,
+    normalizeCutoffs,
+    sanitizeDailySeconds,
+    localDateStr,
+    dayBoundsSecs,
+} from './lib/screenTime.js';
 
 // Indicator Button Class
 const WellbeingIndicator = GObject.registerClass(
@@ -33,6 +40,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
         this._extension = extension;
         this._settings = extension.getSettings();
+        this._destroyed = false;
 
         // Pomodoro state
         this._pomoTimer = null;
@@ -67,7 +75,16 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._pendingSave = false; // Debounce flag for save operations
         this._saveTimeout = null; // Timeout for debounced saves
         this._menuOpenIdleId = null; // Deferred stats refresh on menu open
+
+        // Life tracking (defense against gnome-shell#8289 phantom time)
+        this._heartbeatDir = GLib.build_filenamev([GLib.get_user_state_dir(), 'wellbeing-widget']);
+        this._heartbeatPath = GLib.build_filenamev([this._heartbeatDir, 'heartbeat.json']);
+        this._bootId = null;
+        this._lastHeartbeatWrite = 0;
+        this._forceHistoricalRecalc = false;
+
         this._loadStats();
+        this._initLifeTracking();
 
         this._buildUI();
         this._startUpdating();
@@ -115,11 +132,120 @@ class WellbeingIndicator extends PanelMenu.Button {
             // Restore finalized days from persistent storage
             this._finalizedDays = new Set(this._stats.finalized);
 
+            if (!Array.isArray(this._stats.cutoffs))
+                this._stats.cutoffs = [];
+
+            // v2 migration: clamp values stored before sanity checks
+            // existed — clock steps could persist negative or >24h days
+            if ((this._stats.version ?? 1) < 2) {
+                for (const key of Object.keys(this._stats.daily))
+                    this._stats.daily[key] = sanitizeDailySeconds(this._stats.daily[key]);
+                this._stats.version = 2;
+                console.debug('Wellbeing Widget: Migrated statistics to v2 (sanitized daily values)');
+            }
+
             console.debug(`Wellbeing Widget: Loaded ${Object.keys(this._stats.daily).length} days of data, ${this._finalizedDays.size} finalized`);
         } catch (e) {
             console.debug(`Wellbeing Widget: Error loading stats, initializing fresh: ${e.message}`);
-            this._stats = { daily: {}, pomodoros: {}, finalized: [] };
+            this._stats = { daily: {}, pomodoros: {}, finalized: [], cutoffs: [], version: 2 };
             this._finalizedDays = new Set();
+        }
+    }
+
+    _initLifeTracking() {
+        // The session history file can claim "active" across periods when
+        // the machine was actually off: an unclean shutdown writes no
+        // closing transition, and gnome-shell closes the open state at the
+        // *next boot* (gnome-shell#8289). Collect "evidence of death"
+        // timestamps (cutoffs); the calculation clips any active span at
+        // the first cutoff after its start.
+        try {
+            GLib.mkdir_with_parents(this._heartbeatDir, 0o700);
+            const [, bootIdBytes] = GLib.file_get_contents('/proc/sys/kernel/random/boot_id');
+            this._bootId = new TextDecoder().decode(bootIdBytes).trim();
+        } catch (e) {
+            console.debug(`Wellbeing Widget: life tracking unavailable: ${e.message}`);
+            return;
+        }
+
+        // A previous heartbeat without a clean stop means we died
+        // unexpectedly — nothing after its lastAlive can be genuine
+        try {
+            const [, contents] = GLib.file_get_contents(this._heartbeatPath);
+            const prev = JSON.parse(new TextDecoder().decode(contents));
+            if (!prev.cleanStop && Number.isFinite(prev.lastAlive)) {
+                console.debug(`Wellbeing Widget: unclean stop detected, adding cutoff at ${prev.lastAlive}`);
+                this._addLifeCutoff(prev.lastAlive);
+            }
+        } catch (e) {
+            // No heartbeat file yet (first run) — expected
+        }
+
+        this._writeHeartbeat(false);
+        this._scanBootHistory();
+    }
+
+    _writeHeartbeat(cleanStop) {
+        if (!this._bootId)
+            return;
+        try {
+            // ~100 bytes, atomic (temp file + rename)
+            GLib.file_set_contents(this._heartbeatPath, JSON.stringify({
+                bootId: this._bootId,
+                lastAlive: Math.floor(Date.now() / 1000),
+                cleanStop,
+            }));
+            this._lastHeartbeatWrite = Math.floor(Date.now() / 1000);
+        } catch (e) {
+            console.debug(`Wellbeing Widget: heartbeat write failed: ${e.message}`);
+        }
+    }
+
+    _addLifeCutoff(secs) {
+        const cutoffs = this._stats.cutoffs ?? [];
+        cutoffs.push(secs);
+        this._stats.cutoffs = normalizeCutoffs(cutoffs);
+        // New evidence can invalidate recently recorded days
+        this._forceHistoricalRecalc = true;
+        this._saveStats();
+    }
+
+    _scanBootHistory() {
+        // Once per boot: previous boots' final journal entries are death
+        // timestamps — an active span can never outlive the boot it
+        // started in. This repairs days recorded before the heartbeat
+        // defense existed. Read-only query; failures are non-fatal.
+        if (!this._bootId || this._stats.lastScanBootId === this._bootId)
+            return;
+        try {
+            const proc = Gio.Subprocess.new(
+                ['journalctl', '--list-boots', '-o', 'json', '--quiet'],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE
+            );
+            proc.communicate_utf8_async(null, null, (_proc, res) => {
+                if (this._destroyed)
+                    return;
+                try {
+                    const [, stdout] = proc.communicate_utf8_finish(res);
+                    const boots = JSON.parse(stdout);
+                    const cutoffs = this._stats.cutoffs ?? [];
+                    for (const boot of boots) {
+                        // Skip the live current boot; last_entry is in µs
+                        if (boot.index === 0 || !Number.isFinite(boot.last_entry))
+                            continue;
+                        cutoffs.push(Math.floor(boot.last_entry / 1e6));
+                    }
+                    this._stats.cutoffs = normalizeCutoffs(cutoffs);
+                    this._stats.lastScanBootId = this._bootId;
+                    this._forceHistoricalRecalc = true;
+                    this._saveStats();
+                    console.debug(`Wellbeing Widget: boot scan done, ${this._stats.cutoffs.length} cutoffs known`);
+                } catch (e) {
+                    console.debug(`Wellbeing Widget: boot scan failed (will retry next boot): ${e.message}`);
+                }
+            });
+        } catch (e) {
+            console.debug(`Wellbeing Widget: cannot spawn journalctl: ${e.message}`);
         }
     }
 
@@ -147,11 +273,7 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     _localDateStr(date) {
-        // toISOString() returns the UTC date — wrong day key for any non-UTC timezone
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        return localDateStr(date);
     }
 
     _recordDailyStats(date, screenTimeSeconds) {
@@ -535,6 +657,9 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._updateUI();
         this._updateTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
             this._updateUI();
+            // Heartbeat: bounds the error of an unclean shutdown to ~60s
+            if (Math.floor(Date.now() / 1000) - this._lastHeartbeatWrite >= 60)
+                this._writeHeartbeat(false);
             return GLib.SOURCE_CONTINUE;
         });
     }
@@ -965,61 +1090,13 @@ class WellbeingIndicator extends PanelMenu.Button {
         return 0;
     }
 
-    _calculateDayScreenTime(historyData, targetDate, currentTime = null) {
-        // Helper to calculate screen time for a specific day
-        const midnightStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
-        const midnightEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1, 0, 0, 0);
-
-        const dayStart = Math.floor(midnightStart.getTime() / 1000);
-        const dayEnd = Math.floor(midnightEnd.getTime() / 1000);
-        const isToday = currentTime !== null;
-
-        let totalActiveSeconds = 0;
-        let lastActiveStart = null;
-        let lastStateBeforeDay = null;
-
-        // Find the last state before this day
-        for (const entry of historyData) {
-            if (entry.wallTimeSecs < dayStart) {
-                lastStateBeforeDay = entry.newState;
-            } else {
-                break;
-            }
-        }
-
-        // If we were active at midnight, start counting from midnight
-        if (lastStateBeforeDay === 1) {
-            lastActiveStart = dayStart;
-        }
-
-        // Process this day's entries
-        for (const entry of historyData) {
-            if (entry.wallTimeSecs < dayStart) {
-                continue;
-            }
-            if (entry.wallTimeSecs >= dayEnd) {
-                break;
-            }
-
-            if (entry.newState === 1) {
-                if (lastActiveStart === null) {
-                    lastActiveStart = entry.wallTimeSecs;
-                }
-            } else if (entry.newState === 0) {
-                if (lastActiveStart !== null) {
-                    totalActiveSeconds += (entry.wallTimeSecs - lastActiveStart);
-                    lastActiveStart = null;
-                }
-            }
-        }
-
-        // If still active at end of day (or now for today), close the session
-        if (lastActiveStart !== null) {
-            const endTime = isToday ? currentTime : dayEnd;
-            totalActiveSeconds += (endTime - lastActiveStart);
-        }
-
-        return totalActiveSeconds;
+    _calcDay(historyData, targetDate, currentTime = null) {
+        // Pure calculation lives in lib/screenTime.js (unit-tested);
+        // cutoffs clip phantom spans left by unclean shutdowns
+        return calculateDayScreenTime(historyData, targetDate, {
+            currentTime,
+            cutoffs: this._stats.cutoffs ?? [],
+        });
     }
 
     _updateLiveScreenTime() {
@@ -1048,6 +1125,8 @@ class WellbeingIndicator extends PanelMenu.Button {
         }
 
         file.load_contents_async(null, (_file, res) => {
+            if (this._destroyed)
+                return;
             try {
                 const [success, contents] = file.load_contents_finish(res);
 
@@ -1061,12 +1140,16 @@ class WellbeingIndicator extends PanelMenu.Button {
 
                     // Only update TODAY's screen time (prevent overwriting wrong day due to async delay)
                     if (callbackDateStr === todayStr) {
-                        const todayScreenTime = this._calculateDayScreenTime(historyData, callbackDate, currentTime);
+                        const todayScreenTime = this._calcDay(historyData, callbackDate, currentTime);
                         this._stats.daily[callbackDateStr] = todayScreenTime;
                         this._cachedLiveSeconds = todayScreenTime;
                     }
 
-                    // Calculate historical days ONLY if they're not finalized
+                    // Calculate historical days ONLY if they're not finalized.
+                    // When new death evidence arrives (_forceHistoricalRecalc),
+                    // recompute days the history file still fully covers —
+                    // this repairs phantom time recorded by older versions.
+                    let recalced = false;
                     for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
                         const pastDate = new Date(callbackDate);
                         pastDate.setDate(pastDate.getDate() - daysAgo);
@@ -1077,12 +1160,24 @@ class WellbeingIndicator extends PanelMenu.Button {
                             continue;
                         }
 
-                        // Only calculate if we don't have data yet (first time seeing this date)
-                        if (!this._stats.daily[pastDateStr]) {
-                            const pastScreenTime = this._calculateDayScreenTime(historyData, pastDate, null);
-                            this._stats.daily[pastDateStr] = pastScreenTime;
-                            console.debug(`Wellbeing Widget: Calculated historical data for ${pastDateStr}: ${pastScreenTime} seconds`);
+                        const haveData = this._stats.daily[pastDateStr] !== undefined;
+                        const [pastDayStart] = dayBoundsSecs(pastDate);
+                        const covered = historyData.length > 0 &&
+                            historyData[0].wallTimeSecs <= pastDayStart;
+
+                        if (!haveData || (this._forceHistoricalRecalc && covered)) {
+                            const pastScreenTime = this._calcDay(historyData, pastDate, null);
+                            if (this._stats.daily[pastDateStr] !== pastScreenTime) {
+                                console.debug(`Wellbeing Widget: ${haveData ? 'Repaired' : 'Calculated'} ${pastDateStr}: ${pastScreenTime}s (was ${this._stats.daily[pastDateStr] ?? 'unset'})`);
+                                this._stats.daily[pastDateStr] = pastScreenTime;
+                                recalced = true;
+                            }
                         }
+                    }
+                    if (this._forceHistoricalRecalc) {
+                        this._forceHistoricalRecalc = false;
+                        if (recalced)
+                            this._lastStatsUpdate = 0; // menu stats view is stale now
                     }
 
                     // Save stats (debounced to prevent excessive writes)
@@ -1178,7 +1273,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                         const hours = Math.floor(sessionSeconds / 3600);
                         const minutes = Math.floor((sessionSeconds % 3600) / 60);
                         // Update label asynchronously
-                        if (this._label && this._getDailyScreenTimeSeconds() === 0) {
+                        if (!this._destroyed && this._label && this._getDailyScreenTimeSeconds() === 0) {
                             this._cachedScreenTime = `${hours}h ${minutes}m`;
                             this._label.text = this._cachedScreenTime;
                         }
@@ -1202,7 +1297,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                     const hours = Math.floor(uptimeSeconds / 3600);
                     const minutes = Math.floor((uptimeSeconds % 3600) / 60);
                     // Update label asynchronously
-                    if (this._label && this._getDailyScreenTimeSeconds() === 0) {
+                    if (!this._destroyed && this._label && this._getDailyScreenTimeSeconds() === 0) {
                         this._cachedScreenTime = `${hours}h ${minutes}m`;
                         this._label.text = this._cachedScreenTime;
                     }
@@ -1377,6 +1472,8 @@ class WellbeingIndicator extends PanelMenu.Button {
 
             // Monitor process exit to detect failures
             this._musicProcess.wait_async(null, (proc, res) => {
+                if (this._destroyed)
+                    return;
                 try {
                     proc.wait_finish(res);
                     const exitCode = proc.get_exit_status();
@@ -1501,6 +1598,10 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     destroy() {
+        // Stops in-flight async callbacks from touching disposed actors
+        // or scheduling new timers after teardown
+        this._destroyed = true;
+
         // Clean up all timers and resources
         if (this._updateTimer) {
             GLib.Source.remove(this._updateTimer);
@@ -1517,6 +1618,14 @@ class WellbeingIndicator extends PanelMenu.Button {
         if (this._saveTimeout) {
             GLib.Source.remove(this._saveTimeout);
             this._saveTimeout = null;
+            // Flush the cancelled debounced save so the last update isn't
+            // lost — this runs on every screen lock, not just disable
+            try {
+                this._stats.finalized = Array.from(this._finalizedDays);
+                this._settings.set_string('statistics-data', JSON.stringify(this._stats));
+            } catch (e) {
+                console.debug(`Wellbeing Widget: Error flushing stats on destroy: ${e.message}`);
+            }
         }
         if (this._menuOpenIdleId) {
             GLib.Source.remove(this._menuOpenIdleId);
@@ -1525,6 +1634,9 @@ class WellbeingIndicator extends PanelMenu.Button {
         if (this._musicPlaying) {
             this._stopZenMusic();
         }
+
+        // Deliberate stop (disable, lock screen, logout) — not a crash
+        this._writeHeartbeat(true);
 
         // Disconnect settings listeners
         if (this._settingsChangedIds) {
