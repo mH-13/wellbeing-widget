@@ -40,7 +40,8 @@ class WellbeingIndicator extends PanelMenu.Button {
 
         this._extension = extension;
         this._settings = extension.getSettings();
-        this._destroyed = false;
+        // Cancels all in-flight async file/subprocess work on destroy
+        this._cancellable = new Gio.Cancellable();
 
         // Pomodoro state
         this._pomoTimer = null;
@@ -49,7 +50,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._pomoRunning = false;
         this._pomoCount = 0; // Track completed Pomodoros for long breaks
         this._breakReminders = this._settings.get_boolean('break-reminders');
-        // Start the interval from now — initializing to 0 fired a notification
+        // Start the interval from now - initializing to 0 fired a notification
         // on every extension reload (lock screen, toggling other extensions)
         this._lastBreakNotification = Math.floor(Date.now() / 1000);
 
@@ -89,30 +90,27 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._buildUI();
         this._startUpdating();
 
-        // Listen for settings changes
-        this._settingsChangedIds = [];
-        this._settingsChangedIds.push(
-            this._settings.connect('changed::show-panel-icon', () => {
+        // Listen for settings changes. connectObject ties every handler to
+        // `this`, so a single disconnectObject(this) in destroy() cleans
+        // them all up - no manual signal-id bookkeeping.
+        this._settings.connectObject(
+            'changed::show-panel-icon', () => {
                 this.visible = this._settings.get_boolean('show-panel-icon');
-            })
-        );
-        this._settingsChangedIds.push(
-            this._settings.connect('changed::pomodoro-duration', () => {
+            },
+            'changed::pomodoro-duration', () => {
                 this._pomoDuration = this._settings.get_int('pomodoro-duration') * 60;
                 this._pomoRemaining = this._pomoDuration;
                 this._updateDurationButtons();
                 this._updateUI();
-            })
-        );
-        this._settingsChangedIds.push(
-            this._settings.connect('changed::break-reminders', () => {
+            },
+            'changed::break-reminders', () => {
                 const state = this._settings.get_boolean('break-reminders');
                 this._breakReminders = state;
                 this._breakToggle.setToggleState(state);
                 if (state)
                     this._lastBreakNotification = Math.floor(Date.now() / 1000);
-            })
-        );
+            },
+            this);
 
         // Apply initial visibility from settings
         this.visible = this._settings.get_boolean('show-panel-icon');
@@ -136,7 +134,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 this._stats.cutoffs = [];
 
             // v2 migration: clamp values stored before sanity checks
-            // existed — clock steps could persist negative or >24h days
+            // existed - clock steps could persist negative or >24h days
             if ((this._stats.version ?? 1) < 2) {
                 for (const key of Object.keys(this._stats.daily))
                     this._stats.daily[key] = sanitizeDailySeconds(this._stats.daily[key]);
@@ -161,28 +159,49 @@ class WellbeingIndicator extends PanelMenu.Button {
         // the first cutoff after its start.
         try {
             GLib.mkdir_with_parents(this._heartbeatDir, 0o700);
-            const [, bootIdBytes] = GLib.file_get_contents('/proc/sys/kernel/random/boot_id');
-            this._bootId = new TextDecoder().decode(bootIdBytes).trim();
         } catch (e) {
             console.debug(`Wellbeing Widget: life tracking unavailable: ${e.message}`);
             return;
         }
 
-        // A previous heartbeat without a clean stop means we died
-        // unexpectedly — nothing after its lastAlive can be genuine
-        try {
-            const [, contents] = GLib.file_get_contents(this._heartbeatPath);
-            const prev = JSON.parse(new TextDecoder().decode(contents));
-            if (!prev.cleanStop && Number.isFinite(prev.lastAlive)) {
-                console.debug(`Wellbeing Widget: unclean stop detected, adding cutoff at ${prev.lastAlive}`);
-                this._addLifeCutoff(prev.lastAlive);
+        // Read the boot id (per-boot identity) asynchronously - shell code
+        // must not block the main loop on file I/O, even for /proc
+        const bootIdFile = Gio.File.new_for_path('/proc/sys/kernel/random/boot_id');
+        bootIdFile.load_contents_async(this._cancellable, (file, res) => {
+            let bytes;
+            try {
+                [, bytes] = file.load_contents_finish(res);
+            } catch (e) {
+                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    console.debug(`Wellbeing Widget: life tracking unavailable: ${e.message}`);
+                return;
             }
-        } catch (e) {
-            // No heartbeat file yet (first run) — expected
-        }
+            this._bootId = new TextDecoder().decode(bytes).trim();
+            this._readPreviousHeartbeat();
+        });
+    }
 
-        this._writeHeartbeat(false);
-        this._scanBootHistory();
+    _readPreviousHeartbeat() {
+        // A previous heartbeat without a clean stop means we died
+        // unexpectedly - nothing after its lastAlive can be genuine
+        const file = Gio.File.new_for_path(this._heartbeatPath);
+        file.load_contents_async(this._cancellable, (f, res) => {
+            try {
+                const [, contents] = f.load_contents_finish(res);
+                const prev = JSON.parse(new TextDecoder().decode(contents));
+                if (!prev.cleanStop && Number.isFinite(prev.lastAlive)) {
+                    console.debug(`Wellbeing Widget: unclean stop detected, adding cutoff at ${prev.lastAlive}`);
+                    this._addLifeCutoff(prev.lastAlive);
+                }
+            } catch (e) {
+                // No heartbeat file yet (first run) or cancelled - expected
+                if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    return;
+            }
+            // Mark this session alive, then scan for past unclean boots
+            this._writeHeartbeat(false);
+            this._scanBootHistory();
+        });
     }
 
     _writeHeartbeat(cleanStop) {
@@ -212,7 +231,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
     _scanBootHistory() {
         // Once per boot: previous boots' final journal entries are death
-        // timestamps — an active span can never outlive the boot it
+        // timestamps - an active span can never outlive the boot it
         // started in. This repairs days recorded before the heartbeat
         // defense existed. Read-only query; failures are non-fatal.
         if (!this._bootId || this._stats.lastScanBootId === this._bootId)
@@ -222,9 +241,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 ['journalctl', '--list-boots', '-o', 'json', '--quiet'],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE
             );
-            proc.communicate_utf8_async(null, null, (_proc, res) => {
-                if (this._destroyed)
-                    return;
+            proc.communicate_utf8_async(this._cancellable, null, (_proc, res) => {
                 try {
                     const [, stdout] = proc.communicate_utf8_finish(res);
                     const boots = JSON.parse(stdout);
@@ -241,6 +258,8 @@ class WellbeingIndicator extends PanelMenu.Button {
                     this._saveStats();
                     console.debug(`Wellbeing Widget: boot scan done, ${this._stats.cutoffs.length} cutoffs known`);
                 } catch (e) {
+                    if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        return;
                     console.debug(`Wellbeing Widget: boot scan failed (will retry next boot): ${e.message}`);
                 }
             });
@@ -550,7 +569,6 @@ class WellbeingIndicator extends PanelMenu.Button {
         // Music state
         this._musicPlaying = false;
         this._musicProcess = null;
-        this._musicCancellable = null;
         this._musicAnimationTimer = null;
         this._musicAnimationState = 0;
         this._currentStreamName = null;
@@ -622,8 +640,9 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._settings.set_boolean('break-reminders', state);
         });
 
-        // Update stats when menu opens - deferred for instant opening
-        this.menu.connect('open-state-changed', (_menu, open) => {
+        // Update stats when menu opens - deferred for instant opening.
+        // connectObject(..., this) so destroy()'s disconnectObject cleans it
+        this.menu.connectObject('open-state-changed', (_menu, open) => {
             if (open) {
                 if (this._menuOpenIdleId) {
                     GLib.Source.remove(this._menuOpenIdleId);
@@ -650,7 +669,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                     return GLib.SOURCE_REMOVE;
                 });
             }
-        });
+        }, this);
     }
 
     _startUpdating() {
@@ -1130,9 +1149,7 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._cachedLiveSeconds = 0; // Reset today's cache
         }
 
-        file.load_contents_async(null, (_file, res) => {
-            if (this._destroyed)
-                return;
+        file.load_contents_async(this._cancellable, (_file, res) => {
             try {
                 const [success, contents] = file.load_contents_finish(res);
 
@@ -1153,7 +1170,7 @@ class WellbeingIndicator extends PanelMenu.Button {
 
                     // Calculate historical days ONLY if they're not finalized.
                     // When new death evidence arrives (_forceHistoricalRecalc),
-                    // recompute days the history file still fully covers —
+                    // recompute days the history file still fully covers -
                     // this repairs phantom time recorded by older versions.
                     let recalced = false;
                     for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
@@ -1201,6 +1218,9 @@ class WellbeingIndicator extends PanelMenu.Button {
                     this._cachedLiveSeconds = 0;
                 }
             } catch (e) {
+                // Extension torn down mid-read - nothing left to update
+                if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    return;
                 // Gracefully handle errors - don't show errors for normal fresh install scenarios
                 console.debug(`Wellbeing Widget: Error calculating live screen time: ${e.message}`);
                 // Don't show error to user - this is expected on fresh install
@@ -1262,39 +1282,11 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     _getFallbackScreenTime() {
-        // Fallback: Calculate session time from boot (async)
-        try {
-            const proc = Gio.Subprocess.new(
-                ['bash', '-c', 'date -d "$(who -b | awk \'{print $3, $4}\')" +%s 2>/dev/null'],
-                Gio.SubprocessFlags.STDOUT_PIPE
-            );
-
-            proc.communicate_utf8_async(null, null, (_proc, res) => {
-                try {
-                    const [, stdout] = proc.communicate_utf8_finish(res);
-                    const bootEpoch = parseInt(stdout.trim());
-                    if (!isNaN(bootEpoch)) {
-                        const now = Math.floor(Date.now() / 1000);
-                        const sessionSeconds = now - bootEpoch;
-                        const hours = Math.floor(sessionSeconds / 3600);
-                        const minutes = Math.floor((sessionSeconds % 3600) / 60);
-                        // Update label asynchronously
-                        if (!this._destroyed && this._label && this._getDailyScreenTimeSeconds() === 0) {
-                            this._cachedScreenTime = `${hours}h ${minutes}m`;
-                            this._label.text = this._cachedScreenTime;
-                        }
-                    }
-                } catch (e) {
-                    // Continue to next fallback
-                }
-            });
-        } catch (e) {
-            // Continue to next fallback
-        }
-
-        // System uptime fallback (async)
+        // Fallback when no session history exists yet: estimate from system
+        // uptime. Read /proc/uptime asynchronously rather than spawning
+        // who/date - same "time since boot" figure, no subprocess.
         const uptimeFile = Gio.File.new_for_path('/proc/uptime');
-        uptimeFile.load_contents_async(null, (_sourceObject, res) => {
+        uptimeFile.load_contents_async(this._cancellable, (_sourceObject, res) => {
             try {
                 const [success, contents] = uptimeFile.load_contents_finish(res);
                 if (success) {
@@ -1303,13 +1295,13 @@ class WellbeingIndicator extends PanelMenu.Button {
                     const hours = Math.floor(uptimeSeconds / 3600);
                     const minutes = Math.floor((uptimeSeconds % 3600) / 60);
                     // Update label asynchronously
-                    if (!this._destroyed && this._label && this._getDailyScreenTimeSeconds() === 0) {
+                    if (this._label && this._getDailyScreenTimeSeconds() === 0) {
                         this._cachedScreenTime = `${hours}h ${minutes}m`;
                         this._label.text = this._cachedScreenTime;
                     }
                 }
             } catch (e) {
-                // Silent fail
+                // Cancelled on destroy, or silent fail
             }
         });
 
@@ -1322,7 +1314,7 @@ class WellbeingIndicator extends PanelMenu.Button {
         const isResume = this._pomoRemaining < this._pomoDuration;
         this._pomoRunning = true;
 
-        // Only a fresh session announces itself — resuming after a pause
+        // Only a fresh session announces itself - resuming after a pause
         // used to fire the same notification every time
         if (!isResume && this._settings.get_boolean('visual-alerts')) {
             Main.notify('Focus Session Started', 'Stay concentrated! Timer is running.');
@@ -1442,7 +1434,16 @@ class WellbeingIndicator extends PanelMenu.Button {
     _playZenMusic() {
         if (this._musicPlaying) return;
 
-        // Fresh attempt always starts from the first stream — stale retry
+        // Check the dependency without spawning a process (find_program_in_path
+        // searches $PATH directly). Bail early with a clear message if absent.
+        if (!GLib.find_program_in_path('mpv')) {
+            if (this._musicStatusLabel)
+                this._musicStatusLabel.text = '⚠️ mpv not installed';
+            Main.notify('🎵 Zen Music', 'Music playback requires the "mpv" player. Please install it to use Zen Music.');
+            return;
+        }
+
+        // Fresh attempt always starts from the first stream - stale retry
         // state used to leave Play stuck on the last (failed) stream
         this._currentStreamIndex = 0;
         this._musicRetryCount = 0;
@@ -1459,36 +1460,14 @@ class WellbeingIndicator extends PanelMenu.Button {
 
     _tryPlayStream(streams, streamIndex) {
         if (streamIndex >= streams.length) {
-            // All streams failed
+            // mpv exists (checked before the first attempt), so every stream
+            // being unreachable means a network/stream problem, not a setup one
             console.debug(`Wellbeing Widget: All music streams failed`);
             if (this._musicStatusLabel) {
-                this._musicStatusLabel.text = '⚠️ Unable to play music';
+                this._musicStatusLabel.text = '⚠️ Streams unreachable, check your connection';
             }
             this._musicPlaying = false;
             this._setMusicButtonState(false);
-
-            // Check if mpv is installed
-            try {
-                const proc = Gio.Subprocess.new(
-                    ['which', 'mpv'],
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                );
-                proc.communicate_utf8_async(null, null, (_proc, res) => {
-                    try {
-                        const [, stdout] = proc.communicate_utf8_finish(res);
-                        if (!stdout || stdout.trim() === '') {
-                            // mpv not found
-                            Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
-                        }
-                    } catch (e) {
-                        // mpv not found
-                        Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
-                    }
-                });
-            } catch (e) {
-                // Can't check, just show generic message
-                Main.notify('🎵 Zen Music', 'Unable to play music streams');
-            }
             return;
         }
 
@@ -1497,9 +1476,6 @@ class WellbeingIndicator extends PanelMenu.Button {
         this._currentStreamIndex = streamIndex;
 
         try {
-            // Create cancellable for proper process management
-            this._musicCancellable = new Gio.Cancellable();
-
             // Use mpv with higher volume (80%) via Gio.Subprocess
             this._musicProcess = Gio.Subprocess.new(
                 ['mpv', '--no-video', '--volume=80', '--no-terminal', selectedStream.url],
@@ -1519,10 +1495,9 @@ class WellbeingIndicator extends PanelMenu.Button {
                 Main.notify('🎵 Zen Music', `Playing: ${this._currentStreamName}`);
             }
 
-            // Monitor process exit to detect failures
-            this._musicProcess.wait_async(null, (proc, res) => {
-                if (this._destroyed)
-                    return;
+            // Monitor process exit to detect failures. The cancellable is
+            // tripped in destroy(); force_exit() handles a normal stop.
+            this._musicProcess.wait_async(this._cancellable, (proc, res) => {
                 try {
                     proc.wait_finish(res);
                     const exitCode = proc.get_exit_status();
@@ -1536,22 +1511,23 @@ class WellbeingIndicator extends PanelMenu.Button {
                         this._tryPlayStream(streams, streamIndex + 1);
                     }
                 } catch (e) {
+                    if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        return;
                     console.debug(`Wellbeing Widget: Music process error: ${e.message}`);
                 }
             });
 
         } catch (e) {
             console.debug(`Wellbeing Widget: Could not play stream ${selectedStream.name}: ${e.message}`);
-            // Try next stream
+            // Spawn failed despite mpv being present - try the next stream
             if (this._musicRetryCount < 3) {
                 this._musicRetryCount++;
                 this._tryPlayStream(streams, streamIndex + 1);
             } else {
                 if (this._musicStatusLabel) {
-                    this._musicStatusLabel.text = '⚠️ mpv not installed';
+                    this._musicStatusLabel.text = '⚠️ Unable to start playback';
                 }
                 this._setMusicButtonState(false);
-                Main.notify('🎵 Zen Music', 'Install mpv: sudo dnf/apt install mpv');
             }
         }
     }
@@ -1560,12 +1536,8 @@ class WellbeingIndicator extends PanelMenu.Button {
         if (!this._musicPlaying) return;
 
         try {
-            // Cancel and terminate the music process properly
-            if (this._musicCancellable) {
-                this._musicCancellable.cancel();
-                this._musicCancellable = null;
-            }
-
+            // SIGKILL the player; its wait_async callback then no-ops because
+            // _musicPlaying is already false
             if (this._musicProcess) {
                 this._musicProcess.force_exit();
                 this._musicProcess = null;
@@ -1590,7 +1562,6 @@ class WellbeingIndicator extends PanelMenu.Button {
             // Force reset state even if error occurred
             this._musicPlaying = false;
             this._musicProcess = null;
-            this._musicCancellable = null;
             this._setMusicButtonState(false);
         }
     }
@@ -1650,9 +1621,12 @@ class WellbeingIndicator extends PanelMenu.Button {
     }
 
     destroy() {
-        // Stops in-flight async callbacks from touching disposed actors
-        // or scheduling new timers after teardown
-        this._destroyed = true;
+        // Cancel in-flight async file reads and subprocess waits so their
+        // callbacks return early instead of touching a disposed object
+        if (this._cancellable) {
+            this._cancellable.cancel();
+            this._cancellable = null;
+        }
 
         // Clean up all timers and resources
         if (this._updateTimer) {
@@ -1671,7 +1645,7 @@ class WellbeingIndicator extends PanelMenu.Button {
             GLib.Source.remove(this._saveTimeout);
             this._saveTimeout = null;
             // Flush the cancelled debounced save so the last update isn't
-            // lost — this runs on every screen lock, not just disable
+            // lost - this runs on every screen lock, not just disable
             try {
                 this._stats.finalized = Array.from(this._finalizedDays);
                 this._settings.set_string('statistics-data', JSON.stringify(this._stats));
@@ -1687,18 +1661,12 @@ class WellbeingIndicator extends PanelMenu.Button {
             this._stopZenMusic();
         }
 
-        // Deliberate stop (disable, lock screen, logout) — not a crash
+        // Deliberate stop (disable, lock screen, logout) - not a crash
         this._writeHeartbeat(true);
 
-        // Disconnect settings listeners
-        if (this._settingsChangedIds) {
-            this._settingsChangedIds.forEach(id => {
-                if (this._settings) {
-                    this._settings.disconnect(id);
-                }
-            });
-            this._settingsChangedIds = [];
-        }
+        // Drop every signal handler registered with connectObject(..., this)
+        this._settings.disconnectObject(this);
+        this.menu.disconnectObject(this);
 
         super.destroy();
     }
