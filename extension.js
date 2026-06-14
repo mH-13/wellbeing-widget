@@ -241,7 +241,7 @@ class WellbeingIndicator extends PanelMenu.Button {
                 ['journalctl', '--list-boots', '-o', 'json', '--quiet'],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE
             );
-            proc.communicate_utf8_async(this._cancellable, null, (_proc, res) => {
+            proc.communicate_utf8_async(null, this._cancellable, (_proc, res) => {
                 try {
                     const [, stdout] = proc.communicate_utf8_finish(res);
                     const boots = JSON.parse(stdout);
